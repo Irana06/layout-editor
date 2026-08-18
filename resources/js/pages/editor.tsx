@@ -1,8 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     BoxSelect,
+    ClipboardPaste,
+    Copy,
     FolderOpen,
     Eye,
+    FlipHorizontal,
+    FlipVertical,
     Grid3X3,
     Minus,
     Redo2,
@@ -75,6 +79,8 @@ export default function Editor({
         camera = useRef({ x: G.bgW / 2, y: G.bgH / 2, z: 1 });
     const images = useRef(new Map<string, HTMLImageElement>()),
         history = useRef<Raw[]>([{ buildings: [], walls: [] }]),
+        clipboard = useRef<Raw | null>(null),
+        selectionStart = useRef<{ gx: number; gy: number } | null>(null),
         pointer = useRef({
             down: false,
             moved: false,
@@ -89,6 +95,11 @@ export default function Editor({
         [walls, setWalls] = useState<{ gx: number; gy: number }[]>([]),
         [selected, setSelected] = useState<Type | null>(null),
         [picked, setPicked] = useState<string | null>(null),
+        [selectedIds, setSelectedIds] = useState<string[]>([]),
+        [selectionBox, setSelectionBox] = useState<{
+            start: { gx: number; gy: number };
+            end: { gx: number; gy: number };
+        } | null>(null),
         [tool, setTool] = useState<Tool>('select'),
         [blueprint, setBlueprint] = useState(false),
         [grid, setGrid] = useState(true),
@@ -277,13 +288,15 @@ export default function Editor({
                 if (blueprint) {
                     diamond(b.gx, b.gy, b.size);
                     ctx.fillStyle =
-                        b.uid === picked
+                        selectedIds.includes(b.uid)
                             ? '#f9ecdf'
                             : b.type.definition.category === 'defense'
                               ? '#736866'
                               : '#46454a';
                     ctx.fill();
-                    ctx.strokeStyle = b.uid === picked ? '#b9937c' : '#f9ecdf';
+                    ctx.strokeStyle = selectedIds.includes(b.uid)
+                        ? '#b9937c'
+                        : '#f9ecdf';
                     ctx.lineWidth = Math.max(1, s);
                     ctx.stroke();
                     return;
@@ -301,7 +314,7 @@ export default function Editor({
                     width,
                     height,
                 );
-                if (b.uid === picked) {
+                if (selectedIds.includes(b.uid)) {
                     diamond(b.gx, b.gy, b.size);
                     ctx.strokeStyle = '#f9ecdf';
                     ctx.lineWidth = Math.max(1.5, s * 2);
@@ -321,7 +334,7 @@ export default function Editor({
     }, [types]);
     useEffect(() => {
         draw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    }, [buildings, walls, grid, blueprint, picked, zoom]);
+    }, [buildings, walls, grid, blueprint, selectedIds, zoom]);
     useEffect(() => {
         try {
             const saved = localStorage.getItem(STORE);
@@ -351,6 +364,38 @@ export default function Editor({
         restore(history.current[i]);
         setHistoryIndex(i);
     }, [historyIndex, restore]);
+
+    const copySelection = useCallback(() => {
+        const selection = buildings.filter((building) => selectedIds.includes(building.uid));
+        if (!selection.length) { setStatus('Pilih satu atau beberapa bangunan terlebih dahulu.'); return; }
+        const minX = Math.min(...selection.map((building) => building.gx));
+        const minY = Math.min(...selection.map((building) => building.gy));
+        clipboard.current = {
+            buildings: selection.map((building) => ({ id: building.id, gx: building.gx - minX, gy: building.gy - minY })),
+            walls: [],
+        };
+        setStatus(`${selection.length} bangunan disalin.`);
+    }, [buildings, selectedIds]);
+
+    const pasteSelection = useCallback(() => {
+        if (!clipboard.current) { setStatus('Clipboard layout masih kosong.'); return; }
+        const originX = Math.min(...clipboard.current.buildings.map((building) => building.gx));
+        const originY = Math.min(...clipboard.current.buildings.map((building) => building.gy));
+        const additions = clipboard.current.buildings.flatMap((building) => {
+            const type = typeMap.get(building.id);
+            return type ? [{ uid: crypto.randomUUID(), id: building.id, gx: building.gx - originX + 2, gy: building.gy - originY + 2, size: type.size, type }] : [];
+        });
+        const blocked = additions.some((building) => !canPlace(building.gx, building.gy, building.size));
+        if (blocked) { setStatus('Tidak ada ruang bebas untuk menempelkan selection.'); return; }
+        commit([...buildings, ...additions], walls); setSelectedIds(additions.map((building) => building.uid)); setStatus(`${additions.length} bangunan ditempelkan.`);
+    }, [buildings, canPlace, commit, typeMap, walls]);
+
+    const flipLayout = useCallback((axis: 'horizontal' | 'vertical') => {
+        const target = selectedIds.length ? new Set(selectedIds) : new Set(buildings.map((building) => building.uid));
+        const flipped = buildings.map((building) => !target.has(building.uid) ? building : { ...building, gx: axis === 'horizontal' ? G.n - building.gx - building.size : building.gx, gy: axis === 'vertical' ? G.n - building.gy - building.size : building.gy });
+        commit(flipped, walls.map((wall) => axis === 'horizontal' ? { ...wall, gx: G.n - wall.gx - 1 } : { ...wall, gy: G.n - wall.gy - 1 }));
+        setStatus(axis === 'horizontal' ? 'Layout dicerminkan horizontal.' : 'Layout dicerminkan vertikal.');
+    }, [buildings, commit, selectedIds, walls]);
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement) return;
@@ -362,22 +407,27 @@ export default function Editor({
                 e.preventDefault();
                 redo();
             }
-            if (e.key === 'Delete' && picked) {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') { e.preventDefault(); copySelection(); }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); pasteSelection(); }
+            if (e.key.toLowerCase() === 'h') flipLayout('horizontal');
+            if (e.key.toLowerCase() === 'f') flipLayout('vertical');
+            if (e.key === 'Delete' && selectedIds.length) {
                 commit(
-                    buildings.filter((b) => b.uid !== picked),
+                    buildings.filter((b) => !selectedIds.includes(b.uid)),
                     walls,
                 );
                 setPicked(null);
+                setSelectedIds([]);
             }
             if (e.key.toLowerCase() === 'w') {
                 setTool('wall');
                 setSelected(null);
             }
-            if (e.key.toLowerCase() === 'v') setBlueprint((x) => !x);
+            if (!e.ctrlKey && !e.metaKey && e.key.toLowerCase() === 'v') setBlueprint((x) => !x);
         };
         addEventListener('keydown', onKey);
         return () => removeEventListener('keydown', onKey);
-    }, [buildings, commit, picked, redo, undo, walls]);
+    }, [buildings, commit, copySelection, flipLayout, pasteSelection, redo, selectedIds, undo, walls]);
     const paintWall = (gx: number, gy: number, erase: boolean) => {
         if (gx < 0 || gy < 0 || gx >= G.n || gy >= G.n) return;
         const hit = occupied().get(key(gx, gy));
@@ -401,6 +451,10 @@ export default function Editor({
             moving: tool === 'select' && typeof hit === 'object' ? hit : null,
             painted: new Set(),
         };
+        if (tool === 'select' && e.shiftKey && !hit) {
+            selectionStart.current = cell;
+            setSelectionBox({ start: cell, end: cell });
+        }
         if (tool === 'wall') {
             paintWall(cell.gx, cell.gy, e.shiftKey);
             pointer.current.painted.add(key(cell.gx, cell.gy));
@@ -424,6 +478,10 @@ export default function Editor({
             d.y = p.y;
             return;
         }
+        if (selectionStart.current) {
+            setSelectionBox({ start: selectionStart.current, end: toGrid(p) });
+            return;
+        }
         if (d.moved && !d.moving) {
             const s = Math.min(CW / G.bgW, CH / G.bgH) * camera.current.z;
             camera.current.x -= dx / s;
@@ -444,6 +502,14 @@ export default function Editor({
             );
             return;
         }
+        if (selectionStart.current) {
+            const start = selectionStart.current;
+            const minX = Math.min(start.gx, c.gx), maxX = Math.max(start.gx, c.gx);
+            const minY = Math.min(start.gy, c.gy), maxY = Math.max(start.gy, c.gy);
+            const selected = buildings.filter((building) => building.gx >= minX && building.gx <= maxX && building.gy >= minY && building.gy <= maxY).map((building) => building.uid);
+            setSelectedIds(selected); setPicked(selected[0] ?? null); selectionStart.current = null; setSelectionBox(null); setStatus(`${selected.length} bangunan dipilih.`);
+            return;
+        }
         if (d.moving) {
             if (d.moved && canPlace(c.gx, c.gy, d.moving.size, d.moving)) {
                 commit(
@@ -453,7 +519,7 @@ export default function Editor({
                     walls,
                 );
                 setStatus('Bangunan dipindahkan.');
-            } else if (!d.moved) setPicked(d.moving.uid);
+            } else if (!d.moved) { setPicked(d.moving.uid); setSelectedIds(e.shiftKey ? [...selectedIds, d.moving.uid] : [d.moving.uid]); }
             return;
         }
         if (
@@ -669,6 +735,12 @@ export default function Editor({
                                     <RotateCcw size={16} />
                                     Reset view
                                 </button>
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <button type="button" onClick={copySelection} className="editor-tool"><Copy size={16} />Copy</button>
+                                <button type="button" onClick={pasteSelection} className="editor-tool"><ClipboardPaste size={16} />Paste</button>
+                                <button type="button" onClick={() => flipLayout('horizontal')} className="editor-tool"><FlipHorizontal size={16} />Mirror H</button>
+                                <button type="button" onClick={() => flipLayout('vertical')} className="editor-tool"><FlipVertical size={16} />Mirror V</button>
                             </div>
                         </section>
                         <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5">
