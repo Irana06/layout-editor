@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Kalibrasi sprite - layout-editor</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #1b1f18;
+    color: #e8e8e0;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  p.sub { color: #9a9a90; font-size: 13px; margin: 0 0 16px; }
+  .layout { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .stage-wrap {
+    position: relative;
+    border: 1px solid #3a3d33;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #000;
+  }
+  canvas { display: block; cursor: crosshair; touch-action: none; }
+  .zoomhud {
+    position: absolute; top: 10px; left: 10px;
+    background: rgba(20,22,17,0.75);
+    border: 1px solid #444838;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #ffb648;
+    pointer-events: none;
+  }
+  .modehud {
+    position: absolute; top: 10px; right: 10px;
+    background: rgba(20,22,17,0.85);
+    border: 1px solid #ffb648;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: #ffb648;
+    pointer-events: none;
+    display: none;
+  }
+  .col { display: flex; flex-direction: column; gap: 16px; }
+  .panel {
+    width: 320px;
+    background: #23271f;
+    border: 1px solid #3a3d33;
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .panel h2 { font-size: 13px; font-weight: 600; margin: 0 0 10px; color: #cfcfc4; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
+  select {
+    width: 100%; background: #14160f; color: #e8e8e0; border: 1px solid #444838;
+    border-radius: 6px; padding: 6px 8px; font-size: 13px; margin-bottom: 4px;
+  }
+  .resinfo { font-size: 11px; color: #7d7d74; margin-bottom: 10px; }
+  .catgroup { margin-bottom: 10px; }
+  .catgroup > summary {
+    cursor: pointer; font-size: 12px; color: #cfcfc4; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 4px 0;
+  }
+  .subgroup { margin: 6px 0 6px 8px; }
+  .subgroup > summary {
+    cursor: pointer; font-size: 11px; color: #8f8f86; padding: 3px 0;
+  }
+  .blist { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+  .bitem {
+    background: #2e3327; border: 1px solid #444838; border-radius: 8px;
+    padding: 6px; font-size: 11px; text-align: center; cursor: pointer; color: #e8e8e0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .bitem img { width: 100%; height: 44px; object-fit: contain; display: block; margin-bottom: 4px; }
+  .bitem.active { border-color: #ffb648; background: #3a3524; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; font-size: 12px; color: #cfcfc4; }
+  .row input[type=range] { flex: 1; margin: 0 8px; }
+  .row input[type=number] { width: 64px; background: #14160f; color: #e8e8e0; border: 1px solid #444838; border-radius: 6px; padding: 4px 6px; }
+  .row span.val { width: 46px; text-align: right; color: #ffb648; font-variant-numeric: tabular-nums; }
+  .stepbtns { display: flex; gap: 2px; }
+  .stepbtns button {
+    width: 22px; height: 22px; background: #14160f; color: #e8e8e0; border: 1px solid #444838;
+    border-radius: 4px; cursor: pointer; font-size: 12px; line-height: 1;
+  }
+  .presetbtns { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+  .presetbtns button {
+    background: #14160f; color: #cfcfc4; border: 1px solid #444838; border-radius: 6px;
+    padding: 4px 8px; font-size: 11px; cursor: pointer;
+  }
+  .presetbtns button:hover { border-color: #ffb648; color: #ffb648; }
+  button.action {
+    width: 100%; background: #2e3327; border: 1px solid #444838; color: #e8e8e0;
+    padding: 8px; border-radius: 8px; cursor: pointer; font-size: 13px; margin-top: 4px;
+  }
+  button.action:hover { background: #3a3d33; }
+  button.action:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { border-color: #ffb648; color: #ffb648; }
+  .modebtns { display: flex; gap: 6px; margin-bottom: 10px; }
+  .modebtns button {
+    flex: 1; background: #2e3327; border: 1px solid #444838; color: #cfcfc4;
+    padding: 8px 4px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  }
+  .modebtns button.active { border-color: #ffb648; color: #ffb648; background: #3a3524; }
+  .modebtns button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .lockbtn {
+    background: #2e3327; border: 1px solid #444838; color: #cfcfc4; border-radius: 6px;
+    padding: 4px 10px; font-size: 11px; cursor: pointer; margin-left: auto;
+  }
+  .lockbtn.locked { border-color: #e2a63a; color: #e2a63a; }
+  .lockbtn.unlocked { border-color: #97c459; color: #97c459; }
+  .hint { font-size: 12px; color: #9a9a90; line-height: 1.5; margin-top: 12px; border-top: 1px solid #3a3d33; padding-top: 10px; }
+  .status { font-size: 12px; margin-top: 8px; min-height: 16px; }
+  .status.ok { color: #97c459; }
+  .status.err { color: #e24b4a; }
+  .calib-target { font-size: 12px; color: #ffb648; margin-bottom: 10px; }
+  .gridbadge {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 10px;
+    border: 1px solid;
+  }
+  .gridbadge.ok { color: #97c459; border-color: #97c459; }
+  .gridbadge.warn { color: #e2a63a; border-color: #e2a63a; }
+  fieldset { border: none; padding: 0; margin: 0; }
+  fieldset:disabled { opacity: 0.45; }
+</style>
+</head>
+<body>
+
+<h1>Kalibrasi sprite building</h1>
+<p class="sub">Baca daftar building dari <code>manifest.json</code> (rekursif, termasuk subfolder), kalibrasi posisi grid per scenery, atur gridSize/scale/offset per building, lalu simpan balik ke manifest.</p>
+
+<div class="layout">
+  <div class="stage-wrap">
+    <canvas id="stage" width="1000" height="760"></canvas>
+    <div class="zoomhud" id="zoomhud">100%</div>
+    <div class="modehud" id="modehud">MODE KALIBRASI GRID — drag buat geser, panah buat nudge halus</div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>
+        Scenery
+        <span id="gridBadge" class="gridbadge warn">belum dikalibrasi</span>
+        <button id="lockBtn" class="lockbtn unlocked">🔓 Terbuka</button>
+      </h2>
+      <select id="scenerySelect"></select>
+      <div class="resinfo" id="resInfo">Resolusi: -</div>
+
+      <h2 style="margin-top:14px;">Building</h2>
+      <div id="buildingGroups"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Mode kanvas</h2>
+      <div class="modebtns">
+        <button id="modeViewBtn" class="active">Lihat / pan</button>
+        <button id="modeGridBtn">Kalibrasi grid</button>
+      </div>
+
+      <fieldset id="gridCalibBox">
+        <div class="row">
+          <label>Origin X</label>
+          <input type="number" id="gOriginX" step="1">
+          <div class="stepbtns"><button data-f="gOriginX" data-d="-1">-</button><button data-f="gOriginX" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label>Origin Y</label>
+          <input type="number" id="gOriginY" step="1">
+          <div class="stepbtns"><button data-f="gOriginY" data-d="-1">-</button><button data-f="gOriginY" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label>Tile W</label>
+          <input type="number" id="gTileW" step="1">
+          <div class="stepbtns"><button data-f="gTileW" data-d="-1">-</button><button data-f="gTileW" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label>Tile H</label>
+          <input type="number" id="gTileH" step="1">
+          <div class="stepbtns"><button data-f="gTileH" data-d="-1">-</button><button data-f="gTileH" data-d="1">+</button></div>
+        </div>
+        <div class="row">
+          <label>Grid N</label>
+          <input type="number" id="gN" step="1">
+          <div class="stepbtns"><button data-f="gN" data-d="-1">-</button><button data-f="gN" data-d="1">+</button></div>
+        </div>
+        <div class="presetbtns" id="gridPresets">
+          <span style="font-size:11px; color:#7d7d74; width:100%;">Preset ukuran base (grid N):</span>
+        </div>
+        <div class="hint" style="margin-top:0; border-top:none; padding-top:0;">
+          Klik "Kalibrasi grid" lalu drag di kanvas buat geser origin. Panah keyboard = nudge 1px, Shift+panah = 10px. Kunci grid kalau udah pas biar nggak kegeser nggak sengaja.
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="panel">
+      <h2>Kalibrasi building</h2>
+      <div class="calib-target">Lagi ngatur: <b id="calibTarget">-</b></div>
+      <div class="row">
+        <label>Grid size</label>
+        <input type="number" id="calGrid" min="1" max="8" value="3">
+        <span></span>
+      </div>
+      <div class="row">
+        <label>Scale</label>
+        <input type="range" id="calScale" min="50" max="150" value="100">
+        <span class="val" id="calScaleVal">100%</span>
+      </div>
+      <div class="row">
+        <label>Geser X</label>
+        <input type="range" id="calOx" min="-30" max="30" value="0">
+        <span class="val" id="calOxVal">0px</span>
+      </div>
+      <div class="row">
+        <label>Geser Y</label>
+        <input type="range" id="calOy" min="-30" max="30" value="0">
+        <span class="val" id="calOyVal">0px</span>
+      </div>
+      <label style="font-size:12px; color:#cfcfc4; display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+        <input type="checkbox" id="showFootprint" checked> Tampilkan petak footprint
+      </label>
+
+      <h2 style="margin-top:14px;">Zoom</h2>
+      <div class="row">
+        <label>Level</label>
+        <input type="range" id="zoomSlider" min="100" max="1000" step="10" value="100">
+        <span class="val" id="zoomVal">100%</span>
+      </div>
+      <button class="action" id="resetViewBtn">Reset tampilan</button>
+      <button class="action" id="resetBtn">Reset preview</button>
+
+      <h2 style="margin-top:14px;">Simpan</h2>
+      <button class="action primary" id="connectBtn">Hubungkan ke manifest.json</button>
+      <button class="action primary" id="saveBtn" disabled>Simpan perubahan</button>
+      <button class="action" id="downloadBtn">Download manifest.json</button>
+      <div class="status" id="saveStatus"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GAME_ROOT = './assets/game/';
+const MANIFEST_URL = GAME_ROOT + 'buildings-source/manifest.json';
+const GRID_N_PRESETS = [25, 33, 40, 44, 47];
+
+let manifest = null;
+let selectedScenery = null;
+let selectedBuilding = null;
+let fileHandle = null;
+let mode = 'view'; // 'view' | 'grid'
+
+const sceneryImg = new Image();
+const buildingImgCache = new Map();
+
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+const DPR = Math.min(window.devicePixelRatio || 1, 3);
+canvas.width = 1000 * DPR;
+canvas.height = 760 * DPR;
+canvas.style.width = '1000px';
+canvas.style.height = '760px';
+ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+const CW = 1000, CH = 760;
+
+const camera = { x: 0, y: 0, zoom: 1 };
+let baseFit = 1;
+let placed = [];
+let occupied = {};
+
+function totalScale() { return baseFit * camera.zoom; }
+function key(gx, gy) { return gx + ',' + gy; }
+
+async function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error('gagal load ' + url));
+    im.src = url;
+  });
+}
+
+function getBuildingImg(b) {
+  if (!buildingImgCache.has(b.id)) {
+    const im = new Image();
+    im.src = GAME_ROOT + b.file;
+    buildingImgCache.set(b.id, im);
+  }
+  return buildingImgCache.get(b.id);
+}
+
+function grid() { return selectedScenery.grid; }
+function isLocked() { return !!(selectedScenery && selectedScenery.grid.locked); }
+
+function worldToScreen(wx, wy) {
+  const s = totalScale();
+  return { x: CW / 2 + (wx - camera.x) * s, y: CH / 2 + (wy - camera.y) * s };
+}
+function screenToWorld(sx, sy) {
+  const s = totalScale();
+  return { x: camera.x + (sx - CW / 2) / s, y: camera.y + (sy - CH / 2) / s };
+}
+function isoToWorld(gx, gy) {
+  const g = grid();
+  return { x: g.originX + (gx - gy) * (g.tileW / 2), y: g.originY + (gx + gy) * (g.tileH / 2) };
+}
+function isoToScreen(gx, gy) {
+  const w = isoToWorld(gx, gy);
+  return worldToScreen(w.x, w.y);
+}
+function worldToIso(wx, wy) {
+  const g = grid();
+  const px = wx - g.originX, py = wy - g.originY;
+  const gx = (px / (g.tileW / 2) + py / (g.tileH / 2)) / 2;
+  const gy = (py / (g.tileH / 2) - px / (g.tileW / 2)) / 2;
+  return { gx: Math.floor(gx), gy: Math.floor(gy) };
+}
+
+function canPlace(gx, gy, size) {
+  const g = grid();
+  if (gx < 0 || gy < 0 || gx + size > g.n || gy + size > g.n) return false;
+  for (let y = gy; y < gy + size; y++)
+    for (let x = gx; x < gx + size; x++)
+      if (occupied[key(x, y)]) return false;
+  return true;
+}
+function place(gx, gy, b) {
+  const inst = { gx, gy, size: b.gridSize, building: b };
+  for (let y = gy; y < gy + b.gridSize; y++)
+    for (let x = gx; x < gx + b.gridSize; x++) occupied[key(x, y)] = inst;
+  placed.push(inst);
+}
+function removeInst(inst) {
+  for (let y = inst.gy; y < inst.gy + inst.size; y++)
+    for (let x = inst.gx; x < inst.gx + inst.size; x++) delete occupied[key(x, y)];
+  placed = placed.filter((p) => p !== inst);
+}
+
+function drawTileDiamond(gx, gy, fillStyle, strokeStyle, dashed) {
+  const p1 = isoToScreen(gx, gy);
+  const p2 = isoToScreen(gx + 1, gy);
+  const p3 = isoToScreen(gx + 1, gy + 1);
+  const p4 = isoToScreen(gx, gy + 1);
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.lineTo(p3.x, p3.y);
+  ctx.lineTo(p4.x, p4.y);
+  ctx.closePath();
+  if (fillStyle) { ctx.fillStyle = fillStyle; ctx.fill(); }
+  if (strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.lineWidth = Math.max(1, totalScale() * 0.5);
+    if (dashed) ctx.setLineDash([4, 3]); else ctx.setLineDash([]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawFootprint(inst) {
+  for (let y = inst.gy; y < inst.gy + inst.size; y++) {
+    for (let x = inst.gx; x < inst.gx + inst.size; x++) {
+      drawTileDiamond(x, y, 'rgba(255,255,255,0.12)', 'rgba(255,255,255,0.85)', true);
+    }
+  }
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, CW, CH);
+  if (!selectedScenery || !sceneryImg.complete || !sceneryImg.naturalWidth) return;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  const s = totalScale();
+  const tl = worldToScreen(0, 0);
+  ctx.drawImage(sceneryImg, tl.x, tl.y, sceneryImg.naturalWidth * s, sceneryImg.naturalHeight * s);
+
+  const g = grid();
+  ctx.strokeStyle = mode === 'grid' ? 'rgba(255,182,72,0.55)' : 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = Math.max(1, s * 0.6);
+  for (let gx = 0; gx <= g.n; gx++) {
+    const p1 = isoToScreen(gx, 0), p2 = isoToScreen(gx, g.n);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+  for (let gy = 0; gy <= g.n; gy++) {
+    const p1 = isoToScreen(0, gy), p2 = isoToScreen(g.n, gy);
+    ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+  }
+
+  if (mode === 'grid') {
+    const o = isoToScreen(0, 0);
+    ctx.beginPath();
+    ctx.arc(o.x, o.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffb648';
+    ctx.fill();
+  }
+
+  const showFootprint = document.getElementById('showFootprint').checked;
+  const sorted = [...placed].sort((a, b) => (a.gx + a.gy) - (b.gx + b.gy));
+  sorted.forEach((inst) => {
+    if (showFootprint) drawFootprint(inst);
+    const b = inst.building;
+    const im = getBuildingImg(b);
+    if (!im.complete || !im.naturalWidth) return;
+    const footH = inst.size * g.tileH * s;
+    const aspect = im.naturalHeight / im.naturalWidth;
+    const drawW = inst.size * g.tileW * s * b.calibration.scale;
+    const drawH = drawW * aspect;
+    const topLeft = isoToScreen(inst.gx, inst.gy);
+    const bottomRight = isoToScreen(inst.gx + inst.size, inst.gy + inst.size);
+    const centerX = (topLeft.x + bottomRight.x) / 2 + b.calibration.offsetX * s;
+    const baseY = (topLeft.y + bottomRight.y) / 2 + footH / 2 + b.calibration.offsetY * s;
+    ctx.drawImage(im, centerX - drawW / 2, baseY - drawH, drawW, drawH);
+  });
+}
+
+function frame() { draw(); requestAnimationFrame(frame); }
+
+function updateGridBadge() {
+  const badge = document.getElementById('gridBadge');
+  if (selectedScenery.grid.calibrated) {
+    badge.textContent = 'terkalibrasi';
+    badge.className = 'gridbadge ok';
+  } else {
+    badge.textContent = 'belum dikalibrasi';
+    badge.className = 'gridbadge warn';
+  }
+  updateLockUI();
+}
+
+function updateLockUI() {
+  const locked = isLocked();
+  const btn = document.getElementById('lockBtn');
+  btn.textContent = locked ? '🔒 Terkunci' : '🔓 Terbuka';
+  btn.className = 'lockbtn ' + (locked ? 'locked' : 'unlocked');
+  document.getElementById('gridCalibBox').disabled = locked;
+  document.getElementById('modeGridBtn').disabled = locked;
+  if (locked && mode === 'grid') setMode('view');
+}
+
+document.getElementById('lockBtn').addEventListener('click', () => {
+  if (!selectedScenery) return;
+  selectedScenery.grid.locked = !selectedScenery.grid.locked;
+  updateLockUI();
+});
+
+function syncGridPanel() {
+  const g = grid();
+  document.getElementById('gOriginX').value = Math.round(g.originX * 100) / 100;
+  document.getElementById('gOriginY').value = Math.round(g.originY * 100) / 100;
+  document.getElementById('gTileW').value = g.tileW;
+  document.getElementById('gTileH').value = g.tileH;
+  document.getElementById('gN').value = g.n;
+  updateGridBadge();
+}
+
+function renderGridPresets() {
+  const wrap = document.getElementById('gridPresets');
+  wrap.querySelectorAll('button').forEach((b) => b.remove());
+  GRID_N_PRESETS.forEach((n) => {
+    const btn = document.createElement('button');
+    btn.textContent = n + 'x' + n;
+    btn.addEventListener('click', () => {
+      document.getElementById('gN').value = n;
+      onGridFieldChange();
+    });
+    wrap.appendChild(btn);
+  });
+}
+renderGridPresets();
+
+async function selectScenery(id) {
+  selectedScenery = manifest.scenery.find((s) => s.id === id);
+  if (!selectedScenery) return;
+  if (selectedScenery.grid.locked === undefined) selectedScenery.grid.locked = false;
+  const im = await loadImage(GAME_ROOT + selectedScenery.file);
+  sceneryImg.src = im.src;
+  baseFit = Math.min(CW / (sceneryImg.naturalWidth || CW), CH / (sceneryImg.naturalHeight || CH));
+  camera.x = (sceneryImg.naturalWidth || CW) / 2;
+  camera.y = (sceneryImg.naturalHeight || CH) / 2;
+  camera.zoom = 1;
+  placed = []; occupied = {};
+  document.getElementById('resInfo').textContent =
+    'Resolusi: ' + sceneryImg.naturalWidth + ' x ' + sceneryImg.naturalHeight + 'px';
+  syncGridPanel();
+}
+
+function renderBuildingGroups() {
+  const wrap = document.getElementById('buildingGroups');
+  wrap.innerHTML = '';
+  const byCat = {};
+  manifest.buildings.forEach((b) => {
+    (byCat[b.category] = byCat[b.category] || []).push(b);
+  });
+  Object.keys(byCat).sort().forEach((cat) => {
+    const catDetails = document.createElement('details');
+    catDetails.className = 'catgroup';
+    catDetails.open = true;
+    const catSummary = document.createElement('summary');
+    catSummary.textContent = cat + ' (' + byCat[cat].length + ')';
+    catDetails.appendChild(catSummary);
+
+    const bySub = {};
+    byCat[cat].forEach((b) => {
+      const sub = b.subfolder || '';
+      (bySub[sub] = bySub[sub] || []).push(b);
+    });
+
+    Object.keys(bySub).sort().forEach((sub) => {
+      let container = catDetails;
+      if (sub) {
+        const subDetails = document.createElement('details');
+        subDetails.className = 'subgroup';
+        subDetails.open = true;
+        const subSummary = document.createElement('summary');
+        subSummary.textContent = sub + ' (' + bySub[sub].length + ')';
+        subDetails.appendChild(subSummary);
+        catDetails.appendChild(subDetails);
+        container = subDetails;
+      }
+      const list = document.createElement('div');
+      list.className = 'blist';
+      bySub[sub].forEach((b) => {
+        const item = document.createElement('div');
+        item.className = 'bitem' + (selectedBuilding && selectedBuilding.id === b.id ? ' active' : '');
+        const img = document.createElement('img');
+        img.src = GAME_ROOT + b.file;
+        const label = document.createElement('div');
+        label.textContent = b.name;
+        item.appendChild(img);
+        item.appendChild(label);
+        item.addEventListener('click', () => selectBuilding(b));
+        list.appendChild(item);
+      });
+      container.appendChild(list);
+    });
+
+    wrap.appendChild(catDetails);
+  });
+}
+
+function selectBuilding(b) {
+  selectedBuilding = b;
+  renderBuildingGroups();
+  syncCalibPanel();
+  placed = []; occupied = {};
+  const g = grid();
+  const c = Math.floor(g.n / 2) - Math.floor(b.gridSize / 2);
+  place(c, c, b);
+}
+
+function syncCalibPanel() {
+  const target = document.getElementById('calibTarget');
+  if (!selectedBuilding) { target.textContent = '-'; return; }
+  target.textContent = selectedBuilding.name;
+  document.getElementById('calGrid').value = selectedBuilding.gridSize;
+  document.getElementById('calScale').value = Math.round(selectedBuilding.calibration.scale * 100);
+  document.getElementById('calScaleVal').textContent = Math.round(selectedBuilding.calibration.scale * 100) + '%';
+  document.getElementById('calOx').value = selectedBuilding.calibration.offsetX;
+  document.getElementById('calOxVal').textContent = selectedBuilding.calibration.offsetX + 'px';
+  document.getElementById('calOy').value = selectedBuilding.calibration.offsetY;
+  document.getElementById('calOyVal').textContent = selectedBuilding.calibration.offsetY + 'px';
+}
+
+document.getElementById('calGrid').addEventListener('change', (e) => {
+  if (!selectedBuilding) return;
+  selectedBuilding.gridSize = Math.max(1, Math.min(8, Number(e.target.value) || 1));
+  selectBuilding(selectedBuilding);
+});
+document.getElementById('calScale').addEventListener('input', (e) => {
+  if (!selectedBuilding) return;
+  selectedBuilding.calibration.scale = Number(e.target.value) / 100;
+  document.getElementById('calScaleVal').textContent = e.target.value + '%';
+});
+document.getElementById('calOx').addEventListener('input', (e) => {
+  if (!selectedBuilding) return;
+  selectedBuilding.calibration.offsetX = Number(e.target.value);
+  document.getElementById('calOxVal').textContent = e.target.value + 'px';
+});
+document.getElementById('calOy').addEventListener('input', (e) => {
+  if (!selectedBuilding) return;
+  selectedBuilding.calibration.offsetY = Number(e.target.value);
+  document.getElementById('calOyVal').textContent = e.target.value + 'px';
+});
+document.getElementById('showFootprint').addEventListener('change', () => {});
+
+function onGridFieldChange() {
+  if (isLocked()) return;
+  const g = grid();
+  g.originX = Number(document.getElementById('gOriginX').value) || 0;
+  g.originY = Number(document.getElementById('gOriginY').value) || 0;
+  g.tileW = Math.max(4, Number(document.getElementById('gTileW').value) || 4);
+  g.tileH = Math.max(4, Number(document.getElementById('gTileH').value) || 4);
+  g.n = Math.max(4, Number(document.getElementById('gN').value) || 4);
+  g.calibrated = true;
+  updateGridBadge();
+}
+['gOriginX', 'gOriginY', 'gTileW', 'gTileH', 'gN'].forEach((id) => {
+  document.getElementById(id).addEventListener('change', onGridFieldChange);
+});
+document.querySelectorAll('.stepbtns button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (isLocked()) return;
+    const field = document.getElementById(btn.dataset.f);
+    field.value = (Number(field.value) || 0) + Number(btn.dataset.d);
+    onGridFieldChange();
+  });
+});
+
+function setMode(next) {
+  if (next === 'grid' && isLocked()) return;
+  mode = next;
+  document.getElementById('modeViewBtn').classList.toggle('active', mode === 'view');
+  document.getElementById('modeGridBtn').classList.toggle('active', mode === 'grid');
+  document.getElementById('modehud').style.display = mode === 'grid' ? 'block' : 'none';
+  canvas.style.cursor = mode === 'grid' ? 'move' : 'crosshair';
+}
+document.getElementById('modeViewBtn').addEventListener('click', () => setMode('view'));
+document.getElementById('modeGridBtn').addEventListener('click', () => setMode('grid'));
+
+window.addEventListener('keydown', (e) => {
+  if (mode !== 'grid' || !selectedScenery || isLocked()) return;
+  const step = e.shiftKey ? 10 : 1;
+  const g = grid();
+  let handled = true;
+  if (e.key === 'ArrowLeft') g.originX -= step;
+  else if (e.key === 'ArrowRight') g.originX += step;
+  else if (e.key === 'ArrowUp') g.originY -= step;
+  else if (e.key === 'ArrowDown') g.originY += step;
+  else handled = false;
+  if (handled) {
+    e.preventDefault();
+    g.calibrated = true;
+    syncGridPanel();
+  }
+});
+
+function setZoom(newZoom, pivotSx, pivotSy) {
+  newZoom = Math.min(10, Math.max(1, newZoom));
+  const before = screenToWorld(pivotSx, pivotSy);
+  camera.zoom = newZoom;
+  const after = screenToWorld(pivotSx, pivotSy);
+  camera.x += before.x - after.x;
+  camera.y += before.y - after.y;
+  document.getElementById('zoomSlider').value = Math.round(newZoom * 100);
+  document.getElementById('zoomVal').textContent = Math.round(newZoom * 100) + '%';
+  document.getElementById('zoomhud').textContent = Math.round(newZoom * 100) + '%';
+}
+
+let dragging = false, moved = false, lastX = 0, lastY = 0;
+canvas.addEventListener('mousedown', (e) => { dragging = true; moved = false; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX, dy = e.clientY - lastY;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+  if (moved) {
+    const s = totalScale();
+    if (mode === 'grid' && !isLocked()) {
+      const g = grid();
+      g.originX += dx / s;
+      g.originY += dy / s;
+      g.calibrated = true;
+      syncGridPanel();
+    } else if (mode === 'view') {
+      camera.x -= dx / s; camera.y -= dy / s;
+    }
+    lastX = e.clientX; lastY = e.clientY;
+  }
+});
+window.addEventListener('mouseup', (e) => {
+  if (!dragging) return;
+  dragging = false;
+  if (!moved && mode === 'view' && selectedBuilding) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const w = screenToWorld(sx, sy);
+    const { gx, gy } = worldToIso(w.x, w.y);
+    const hit = occupied[key(gx, gy)];
+    if (hit) removeInst(hit);
+    else if (canPlace(gx, gy, selectedBuilding.gridSize)) place(gx, gy, selectedBuilding);
+  }
+});
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+  setZoom(camera.zoom * factor, sx, sy);
+}, { passive: false });
+document.getElementById('zoomSlider').addEventListener('input', (e) => setZoom(Number(e.target.value) / 100, CW / 2, CH / 2));
+document.getElementById('resetViewBtn').addEventListener('click', () => {
+  if (!sceneryImg.naturalWidth) return;
+  camera.x = sceneryImg.naturalWidth / 2; camera.y = sceneryImg.naturalHeight / 2; camera.zoom = 1;
+  document.getElementById('zoomSlider').value = 100;
+  document.getElementById('zoomVal').textContent = '100%';
+  document.getElementById('zoomhud').textContent = '100%';
+});
+document.getElementById('resetBtn').addEventListener('click', () => {
+  placed = []; occupied = {};
+  if (selectedBuilding) selectBuilding(selectedBuilding);
+});
+
+function setStatus(msg, ok) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.className = 'status ' + (ok ? 'ok' : 'err');
+}
+
+document.getElementById('connectBtn').addEventListener('click', async () => {
+  if (!window.showOpenFilePicker) {
+    setStatus('Browser ini nggak dukung File System Access API. Pakai tombol Download.', false);
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      excludeAcceptAllOption: false
+    });
+    const perm = await handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') { setStatus('Izin tulis ditolak.', false); return; }
+    fileHandle = handle;
+    document.getElementById('saveBtn').disabled = false;
+    setStatus('Terhubung ke ' + handle.name + '.', true);
+  } catch (err) {
+    setStatus('Dibatalkan / gagal: ' + err.message, false);
+  }
+});
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (!fileHandle) return;
+  try {
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(manifest, null, 2));
+    await writable.close();
+    setStatus('Tersimpan ke ' + fileHandle.name, true);
+  } catch (err) {
+    setStatus('Gagal simpan: ' + err.message, false);
+  }
+});
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'manifest.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  setStatus('manifest.json ke-download, timpa file lama secara manual.', true);
+});
+
+async function init() {
+  try {
+    const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    manifest = await res.json();
+  } catch (err) {
+    setStatus('Gagal load manifest.json: ' + err.message, false);
+    return;
+  }
+  if (!manifest.scenery || !manifest.scenery.length) {
+    setStatus('manifest.json belum punya entry scenery. Jalankan generate-manifest.js dulu.', false);
+    return;
+  }
+  const sel = document.getElementById('scenerySelect');
+  manifest.scenery.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.name;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => selectScenery(sel.value));
+  await selectScenery(manifest.scenery[0].id);
+
+  renderBuildingGroups();
+  if (manifest.buildings.length) selectBuilding(manifest.buildings[0]);
+  else setStatus('Nggak ada building kedeteksi. Cek lagi struktur folder buildings-source, lalu jalankan generate-manifest.js.', false);
+
+  frame();
+}
+
+init();
+</script>
+</body>
+</html>
