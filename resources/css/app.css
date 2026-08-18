@@ -162,4 +162,10 @@
         background-image: radial-gradient(rgb(249 236 223 / 12%) 0.6px, transparent 0.6px);
         background-size: 18px 18px;
     }
+
+    .editor-tool {
+        display: flex; min-height: 2.5rem; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; border: 1px solid rgb(249 236 223 / .1); border-radius: .75rem; background: rgb(5 4 5 / .45); color: rgb(249 236 223 / .7); font-size: .6875rem; font-weight: 700; transition: 150ms ease;
+    }
+    .editor-tool:hover { border-color: rgb(185 147 124 / .55); color: #f9ecdf; }
+    .editor-tool-active { border-color: #b9937c; background: rgb(185 147 124 / .2); color: #f9ecdf; }
 }

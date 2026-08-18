@@ -1,280 +1,756 @@
 import { Head, Link } from '@inertiajs/react';
-import { Grid3X3, Minus, MousePointer2, RotateCcw, Search, Trash2, ZoomIn } from 'lucide-react';
-import { type PointerEvent, useEffect, useMemo, useRef, useState, type WheelEvent } from 'react';
-import { getEditorPalette, type EditorPaletteBuilding } from '@/data/game-catalog';
+import {
+    BoxSelect,
+    FolderOpen,
+    Eye,
+    Grid3X3,
+    Minus,
+    Redo2,
+    RotateCcw,
+    Save,
+    Share2,
+    Trash2,
+    Undo2,
+    ZoomIn,
+} from 'lucide-react';
+import {
+    type PointerEvent,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type WheelEvent,
+} from 'react';
+import {
+    getEditorPalette,
+    type EditorPaletteBuilding,
+} from '@/data/game-catalog';
 
-const CANVAS_WIDTH = 1000;
-const CANVAS_HEIGHT = 760;
-const GRID = { bgW: 3705, bgH: 2545, tileW: 56, tileH: 42, originX: 1895, originY: 250, n: 44 };
-const ASSET_ROOT = '/game/';
+const CW = 1000,
+    CH = 760,
+    ROOT = '/game/',
+    STORE = 'clash-layout-editor:v1';
+const G = {
+    bgW: 3705,
+    bgH: 2545,
+    tileW: 56,
+    tileH: 42,
+    ox: 1895,
+    oy: 250,
+    n: 44,
+};
+const WALL = 'buildings-source/defensive/wall/Wall18.png';
+const Wall = Grid3X3;
+type Type = EditorPaletteBuilding;
+type Building = {
+    uid: string;
+    id: string;
+    gx: number;
+    gy: number;
+    size: number;
+    type: Type;
+};
+type Raw = {
+    buildings: { id: string; gx: number; gy: number }[];
+    walls: { gx: number; gy: number }[];
+};
+type Tool = 'select' | 'place' | 'wall';
+type ServerLayout = {
+    id: string;
+    title: string;
+    town_hall: number;
+    payload: Raw;
+    thumbnail_data: string | null;
+    share_enabled: boolean;
+};
+const key = (x: number, y: number) => `${x},${y}`;
 
-type BuildingType = EditorPaletteBuilding;
-type PlacedBuilding = { gx: number; gy: number; size: number; type: BuildingType };
-type Point = { x: number; y: number };
-
-function tileKey(gx: number, gy: number) {
-    return `${gx},${gy}`;
-}
-
-export default function Editor() {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const cameraRef = useRef({ x: GRID.bgW / 2, y: GRID.bgH / 2, zoom: 1 });
-    const imagesRef = useRef(new Map<string, HTMLImageElement>());
-    const occupiedRef = useRef<Record<string, PlacedBuilding>>({});
-    const dragRef = useRef({ active: false, moved: false, lastX: 0, lastY: 0 });
-    const buildingTypes = useMemo<BuildingType[]>(() => getEditorPalette(18), []);
-    const [selectedType, setSelectedType] = useState<BuildingType | null>(null);
-    const [placed, setPlaced] = useState<PlacedBuilding[]>([]);
-    const [showGrid, setShowGrid] = useState(true);
-    const [zoom, setZoom] = useState(1);
-    const [status] = useState('Pilih bangunan, lalu klik tile untuk menempatkan.');
-
-    const assetUrl = (file: string) => `${ASSET_ROOT}${file}`;
-
-    useEffect(() => {
-        const sources = ['scenery/classic.jpg', ...buildingTypes.map((type) => type.file)];
-        let remaining = sources.length;
-
-        sources.forEach((file) => {
-            const image = new Image();
-            image.onload = image.onerror = () => {
-                remaining -= 1;
-                if (remaining === 0) window.requestAnimationFrame(draw);
-            };
-            image.src = assetUrl(file);
-            imagesRef.current.set(file, image);
+export default function Editor({
+    sharedLayout,
+}: {
+    sharedLayout?: ServerLayout;
+}) {
+    const canvas = useRef<HTMLCanvasElement>(null),
+        camera = useRef({ x: G.bgW / 2, y: G.bgH / 2, z: 1 });
+    const images = useRef(new Map<string, HTMLImageElement>()),
+        history = useRef<Raw[]>([{ buildings: [], walls: [] }]),
+        pointer = useRef({
+            down: false,
+            moved: false,
+            x: 0,
+            y: 0,
+            moving: null as Building | null,
+            painted: new Set<string>(),
         });
-        // draw is intentionally called after source loading; it reads the live canvas state.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [buildingTypes]);
-
-    function draw() {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const context = canvas.getContext('2d', { alpha: false });
-        if (!context) return;
-
-        const dpr = Math.min(window.devicePixelRatio || 1, 3);
-        if (canvas.width !== CANVAS_WIDTH * dpr || canvas.height !== CANVAS_HEIGHT * dpr) {
-            canvas.width = CANVAS_WIDTH * dpr;
-            canvas.height = CANVAS_HEIGHT * dpr;
-        }
-        context.setTransform(dpr, 0, 0, dpr, 0, 0);
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = 'high';
-        context.fillStyle = '#050405';
-        context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        const camera = cameraRef.current;
-        const scale = Math.min(CANVAS_WIDTH / GRID.bgW, CANVAS_HEIGHT / GRID.bgH) * camera.zoom;
-        const worldToScreen = (wx: number, wy: number): Point => ({
-            x: CANVAS_WIDTH / 2 + (wx - camera.x) * scale,
-            y: CANVAS_HEIGHT / 2 + (wy - camera.y) * scale,
-        });
-        const isoToScreen = (gx: number, gy: number) =>
-            worldToScreen(GRID.originX + (gx - gy) * (GRID.tileW / 2), GRID.originY + (gx + gy) * (GRID.tileH / 2));
-
-        const scenery = imagesRef.current.get('scenery/classic.jpg');
-        if (scenery?.complete && scenery.naturalWidth) {
-            const topLeft = worldToScreen(0, 0);
-            context.drawImage(scenery, topLeft.x, topLeft.y, GRID.bgW * scale, GRID.bgH * scale);
-        }
-
-        if (showGrid) {
-            context.strokeStyle = 'rgb(249 236 223 / 0.3)';
-            context.lineWidth = Math.max(1, scale * 0.6);
-            for (let gx = 0; gx <= GRID.n; gx += 1) {
-                const first = isoToScreen(gx, 0);
-                const last = isoToScreen(gx, GRID.n);
-                context.beginPath(); context.moveTo(first.x, first.y); context.lineTo(last.x, last.y); context.stroke();
-            }
-            for (let gy = 0; gy <= GRID.n; gy += 1) {
-                const first = isoToScreen(0, gy);
-                const last = isoToScreen(GRID.n, gy);
-                context.beginPath(); context.moveTo(first.x, first.y); context.lineTo(last.x, last.y); context.stroke();
-            }
-        }
-
-        [...placed]
-            .sort((left, right) => left.gx + left.gy - (right.gx + right.gy))
-            .forEach((building) => {
-                const image = imagesRef.current.get(building.type.file);
-                if (!image?.complete || !image.naturalWidth) return;
-                const footprintHeight = building.size * GRID.tileH * scale;
-                const drawWidth = building.size * GRID.tileW * scale * 1.05;
-                const drawHeight = drawWidth * (image.naturalHeight / image.naturalWidth);
-                const topLeft = isoToScreen(building.gx, building.gy);
-                const bottomRight = isoToScreen(building.gx + building.size, building.gy + building.size);
-                const centerX = (topLeft.x + bottomRight.x) / 2;
-                const baseY = (topLeft.y + bottomRight.y) / 2 + footprintHeight / 2;
-                context.drawImage(image, centerX - drawWidth / 2, baseY - drawHeight, drawWidth, drawHeight);
+    const types = useMemo<Type[]>(() => getEditorPalette(18), []),
+        typeMap = useMemo(() => new Map(types.map((x) => [x.id, x])), [types]);
+    const [buildings, setBuildings] = useState<Building[]>([]),
+        [walls, setWalls] = useState<{ gx: number; gy: number }[]>([]),
+        [selected, setSelected] = useState<Type | null>(null),
+        [picked, setPicked] = useState<string | null>(null),
+        [tool, setTool] = useState<Tool>('select'),
+        [blueprint, setBlueprint] = useState(false),
+        [grid, setGrid] = useState(true),
+        [zoom, setZoom] = useState(1),
+        [historyIndex, setHistoryIndex] = useState(0),
+        [layoutId, setLayoutId] = useState<string | null>(sharedLayout?.id ?? null),
+        [layoutTitle, setLayoutTitle] = useState(sharedLayout?.title ?? 'Layout tanpa judul'),
+        [status, setStatus] = useState(
+            'Pilih bangunan atau Wall untuk mulai membangun.',
+        );
+    const src = (f: string) => ROOT + f;
+    const raw = useCallback(
+        (bs = buildings, ws = walls): Raw => ({
+            buildings: bs.map(({ id, gx, gy }) => ({ id, gx, gy })),
+            walls: ws,
+        }),
+        [buildings, walls],
+    );
+    const restore = useCallback(
+        (data: Raw) => {
+            setBuildings(
+                data.buildings.flatMap((b) => {
+                    const type = typeMap.get(b.id);
+                    return type
+                        ? [
+                              {
+                                  ...b,
+                                  uid: crypto.randomUUID(),
+                                  size: type.size,
+                                  type,
+                              },
+                          ]
+                        : [];
+                }),
+            );
+            setWalls(data.walls);
+        },
+        [typeMap],
+    );
+    const commit = useCallback(
+        (bs: Building[], ws: { gx: number; gy: number }[]) => {
+            setBuildings(bs);
+            setWalls(ws);
+            const next = [
+                ...history.current.slice(0, historyIndex + 1),
+                raw(bs, ws),
+            ];
+            history.current = next;
+            setHistoryIndex(next.length - 1);
+        },
+        [historyIndex, raw],
+    );
+    const occupied = useCallback(
+        (bs = buildings, ws = walls) => {
+            const map = new Map<string, Building | 'wall'>();
+            ws.forEach((w) => map.set(key(w.gx, w.gy), 'wall'));
+            bs.forEach((b) => {
+                for (let y = b.gy; y < b.gy + b.size; y += 1)
+                    for (let x = b.gx; x < b.gx + b.size; x += 1)
+                        map.set(key(x, y), b);
             });
-    }
-
-    useEffect(() => {
-        draw();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [placed, showGrid, zoom]);
-
-    const pointerPosition = (event: PointerEvent<HTMLCanvasElement>) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        return {
-            x: (event.clientX - rect.left) * (CANVAS_WIDTH / rect.width),
-            y: (event.clientY - rect.top) * (CANVAS_HEIGHT / rect.height),
-        };
-    };
-
-    const toGrid = (screen: Point) => {
-        const camera = cameraRef.current;
-        const scale = Math.min(CANVAS_WIDTH / GRID.bgW, CANVAS_HEIGHT / GRID.bgH) * camera.zoom;
-        const worldX = camera.x + (screen.x - CANVAS_WIDTH / 2) / scale;
-        const worldY = camera.y + (screen.y - CANVAS_HEIGHT / 2) / scale;
-        const pixelX = worldX - GRID.originX;
-        const pixelY = worldY - GRID.originY;
-        return {
-            gx: Math.floor((pixelX / (GRID.tileW / 2) + pixelY / (GRID.tileH / 2)) / 2),
-            gy: Math.floor((pixelY / (GRID.tileH / 2) - pixelX / (GRID.tileW / 2)) / 2),
-        };
-    };
-
-    const canPlace = (gx: number, gy: number, size: number) => {
-        if (gx < 0 || gy < 0 || gx + size > GRID.n || gy + size > GRID.n) return false;
-        for (let y = gy; y < gy + size; y += 1) {
-            for (let x = gx; x < gx + size; x += 1) {
-                if (occupiedRef.current[tileKey(x, y)]) return false;
+            return map;
+        },
+        [buildings, walls],
+    );
+    const canPlace = (
+        x: number,
+        y: number,
+        size: number,
+        ignore?: Building,
+    ) => {
+        if (x < 0 || y < 0 || x + size > G.n || y + size > G.n) return false;
+        const cells = occupied();
+        for (let yy = y; yy < y + size; yy += 1)
+            for (let xx = x; xx < x + size; xx += 1) {
+                const hit = cells.get(key(xx, yy));
+                if (hit && hit !== ignore) return false;
             }
-        }
         return true;
     };
-
-    const removeBuilding = (building: PlacedBuilding) => {
-        for (let y = building.gy; y < building.gy + building.size; y += 1) {
-            for (let x = building.gx; x < building.gx + building.size; x += 1) delete occupiedRef.current[tileKey(x, y)];
+    const point = (e: PointerEvent<HTMLCanvasElement>) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        return {
+            x: ((e.clientX - r.left) * CW) / r.width,
+            y: ((e.clientY - r.top) * CH) / r.height,
+        };
+    };
+    const toGrid = (p: { x: number; y: number }) => {
+        const s = Math.min(CW / G.bgW, CH / G.bgH) * camera.current.z,
+            wx = camera.current.x + (p.x - CW / 2) / s,
+            wy = camera.current.y + (p.y - CH / 2) / s,
+            px = wx - G.ox,
+            py = wy - G.oy;
+        return {
+            gx: Math.floor((px / (G.tileW / 2) + py / (G.tileH / 2)) / 2),
+            gy: Math.floor((py / (G.tileH / 2) - px / (G.tileW / 2)) / 2),
+        };
+    };
+    function draw() {
+        const el = canvas.current,
+            ctx = el?.getContext('2d', { alpha: false });
+        if (!el || !ctx) return;
+        const dpr = Math.min(devicePixelRatio || 1, 3);
+        if (el.width !== CW * dpr) {
+            el.width = CW * dpr;
+            el.height = CH * dpr;
         }
-        setPlaced((current) => current.filter((item) => item !== building));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = blueprint ? '#201818' : '#050405';
+        ctx.fillRect(0, 0, CW, CH);
+        const s = Math.min(CW / G.bgW, CH / G.bgH) * camera.current.z,
+            ws = (x: number, y: number) => ({
+                x: CW / 2 + (x - camera.current.x) * s,
+                y: CH / 2 + (y - camera.current.y) * s,
+            }),
+            iso = (x: number, y: number) =>
+                ws(
+                    G.ox + ((x - y) * G.tileW) / 2,
+                    G.oy + ((x + y) * G.tileH) / 2,
+                ),
+            diamond = (x: number, y: number, z = 1) => {
+                const a = iso(x, y),
+                    b = iso(x + z, y),
+                    c = iso(x + z, y + z),
+                    d = iso(x, y + z);
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.lineTo(c.x, c.y);
+                ctx.lineTo(d.x, d.y);
+                ctx.closePath();
+            };
+        const bg = images.current.get('scenery/classic.jpg');
+        if (!blueprint && bg?.naturalWidth) {
+            const p = ws(0, 0);
+            ctx.drawImage(bg, p.x, p.y, G.bgW * s, G.bgH * s);
+        }
+        if (grid || blueprint) {
+            ctx.strokeStyle = blueprint
+                ? 'rgb(185 147 124 / .45)'
+                : 'rgb(249 236 223 / .3)';
+            ctx.lineWidth = Math.max(1, s * 0.6);
+            for (let x = 0; x <= G.n; x += 1) {
+                const a = iso(x, 0),
+                    b = iso(x, G.n);
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= G.n; y += 1) {
+                const a = iso(0, y),
+                    b = iso(G.n, y);
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(b.x, b.y);
+                ctx.stroke();
+            }
+        }
+        walls.forEach((w) => {
+            if (blueprint) {
+                diamond(w.gx, w.gy);
+                ctx.fillStyle = '#b9937c';
+                ctx.fill();
+                ctx.strokeStyle = '#f9ecdf';
+                ctx.stroke();
+                return;
+            }
+            const im = images.current.get(WALL);
+            if (!im?.naturalWidth) return;
+            const a = iso(w.gx, w.gy),
+                b = iso(w.gx + 1, w.gy + 1),
+                width = G.tileW * s * 1.2,
+                height = (width * im.naturalHeight) / im.naturalWidth;
+            ctx.drawImage(
+                im,
+                (a.x + b.x) / 2 - width / 2,
+                (a.y + b.y) / 2 + (G.tileH * s) / 2 - height,
+                width,
+                height,
+            );
+        });
+        [...buildings]
+            .sort((a, b) => a.gx + a.gy - b.gx - b.gy)
+            .forEach((b) => {
+                if (blueprint) {
+                    diamond(b.gx, b.gy, b.size);
+                    ctx.fillStyle =
+                        b.uid === picked
+                            ? '#f9ecdf'
+                            : b.type.definition.category === 'defense'
+                              ? '#736866'
+                              : '#46454a';
+                    ctx.fill();
+                    ctx.strokeStyle = b.uid === picked ? '#b9937c' : '#f9ecdf';
+                    ctx.lineWidth = Math.max(1, s);
+                    ctx.stroke();
+                    return;
+                }
+                const im = images.current.get(b.type.file);
+                if (!im?.naturalWidth) return;
+                const a = iso(b.gx, b.gy),
+                    z = iso(b.gx + b.size, b.gy + b.size),
+                    width = b.size * G.tileW * s * 1.05,
+                    height = (width * im.naturalHeight) / im.naturalWidth;
+                ctx.drawImage(
+                    im,
+                    (a.x + z.x) / 2 - width / 2,
+                    (a.y + z.y) / 2 + (b.size * G.tileH * s) / 2 - height,
+                    width,
+                    height,
+                );
+                if (b.uid === picked) {
+                    diamond(b.gx, b.gy, b.size);
+                    ctx.strokeStyle = '#f9ecdf';
+                    ctx.lineWidth = Math.max(1.5, s * 2);
+                    ctx.stroke();
+                }
+            });
+    }
+    useEffect(() => {
+        ['scenery/classic.jpg', WALL, ...types.map((x) => x.file)].forEach(
+            (file) => {
+                const im = new Image();
+                im.onload = () => draw();
+                im.src = src(file);
+                images.current.set(file, im);
+            },
+        ); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    }, [types]);
+    useEffect(() => {
+        draw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
+    }, [buildings, walls, grid, blueprint, picked, zoom]);
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem(STORE);
+            if (!saved) return;
+            const data = JSON.parse(saved) as Raw;
+            if (Array.isArray(data.buildings) && Array.isArray(data.walls)) {
+                restore(data);
+                history.current = [data];
+                setStatus('Layout lokal dipulihkan otomatis.');
+            }
+        } catch {
+            localStorage.removeItem(STORE);
+        }
+    }, [restore]);
+    useEffect(() => {
+        localStorage.setItem(STORE, JSON.stringify(raw()));
+    }, [buildings, walls, raw]);
+    const undo = useCallback(() => {
+        if (!historyIndex) return;
+        const i = historyIndex - 1;
+        restore(history.current[i]);
+        setHistoryIndex(i);
+    }, [historyIndex, restore]);
+    const redo = useCallback(() => {
+        if (historyIndex >= history.current.length - 1) return;
+        const i = historyIndex + 1;
+        restore(history.current[i]);
+        setHistoryIndex(i);
+    }, [historyIndex, restore]);
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (e.target instanceof HTMLInputElement) return;
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+                e.preventDefault();
+                e.shiftKey ? redo() : undo();
+            }
+            if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+                e.preventDefault();
+                redo();
+            }
+            if (e.key === 'Delete' && picked) {
+                commit(
+                    buildings.filter((b) => b.uid !== picked),
+                    walls,
+                );
+                setPicked(null);
+            }
+            if (e.key.toLowerCase() === 'w') {
+                setTool('wall');
+                setSelected(null);
+            }
+            if (e.key.toLowerCase() === 'v') setBlueprint((x) => !x);
+        };
+        addEventListener('keydown', onKey);
+        return () => removeEventListener('keydown', onKey);
+    }, [buildings, commit, picked, redo, undo, walls]);
+    const paintWall = (gx: number, gy: number, erase: boolean) => {
+        if (gx < 0 || gy < 0 || gx >= G.n || gy >= G.n) return;
+        const hit = occupied().get(key(gx, gy));
+        if (erase && hit === 'wall')
+            commit(
+                buildings,
+                walls.filter((w) => key(w.gx, w.gy) !== key(gx, gy)),
+            );
+        else if (!erase && !hit) commit(buildings, [...walls, { gx, gy }]);
     };
-
-    const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        const point = pointerPosition(event);
-        dragRef.current = { active: true, moved: false, lastX: point.x, lastY: point.y };
+    const down = (e: PointerEvent<HTMLCanvasElement>) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const p = point(e),
+            cell = toGrid(p),
+            hit = occupied().get(key(cell.gx, cell.gy));
+        pointer.current = {
+            down: true,
+            moved: false,
+            x: p.x,
+            y: p.y,
+            moving: tool === 'select' && typeof hit === 'object' ? hit : null,
+            painted: new Set(),
+        };
+        if (tool === 'wall') {
+            paintWall(cell.gx, cell.gy, e.shiftKey);
+            pointer.current.painted.add(key(cell.gx, cell.gy));
+        }
     };
-
-    const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
-        const drag = dragRef.current;
-        if (!drag.active) return;
-        const point = pointerPosition(event);
-        const dx = point.x - drag.lastX;
-        const dy = point.y - drag.lastY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
-        if (!drag.moved) return;
-        const scale = Math.min(CANVAS_WIDTH / GRID.bgW, CANVAS_HEIGHT / GRID.bgH) * cameraRef.current.zoom;
-        cameraRef.current.x -= dx / scale;
-        cameraRef.current.y -= dy / scale;
-        drag.lastX = point.x;
-        drag.lastY = point.y;
-        draw();
-    };
-
-    const onPointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
-        const drag = dragRef.current;
-        if (!drag.active) return;
-        drag.active = false;
-        if (drag.moved) return;
-        const { gx, gy } = toGrid(pointerPosition(event));
-        const hit = occupiedRef.current[tileKey(gx, gy)];
-        if (hit) {
-            removeBuilding(hit);
+    const move = (e: PointerEvent<HTMLCanvasElement>) => {
+        const d = pointer.current;
+        if (!d.down) return;
+        const p = point(e),
+            dx = p.x - d.x,
+            dy = p.y - d.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) d.moved = true;
+        if (tool === 'wall') {
+            const c = toGrid(p),
+                k = key(c.gx, c.gy);
+            if (!d.painted.has(k)) {
+                paintWall(c.gx, c.gy, e.shiftKey);
+                d.painted.add(k);
+            }
+            d.x = p.x;
+            d.y = p.y;
             return;
         }
-        if (selectedType && canPlace(gx, gy, selectedType.size)) {
-            const building = { gx, gy, size: selectedType.size, type: selectedType };
-            for (let y = gy; y < gy + building.size; y += 1) {
-                for (let x = gx; x < gx + building.size; x += 1) occupiedRef.current[tileKey(x, y)] = building;
-            }
-            setPlaced((current) => [...current, building]);
+        if (d.moved && !d.moving) {
+            const s = Math.min(CW / G.bgW, CH / G.bgH) * camera.current.z;
+            camera.current.x -= dx / s;
+            camera.current.y -= dy / s;
+            d.x = p.x;
+            d.y = p.y;
+            draw();
         }
     };
+    const up = (e: PointerEvent<HTMLCanvasElement>) => {
+        const d = pointer.current;
+        if (!d.down) return;
+        d.down = false;
+        const c = toGrid(point(e));
+        if (tool === 'wall') {
+            setStatus(
+                'Wall ditambahkan. Tahan Shift saat drag untuk menghapus.',
+            );
+            return;
+        }
+        if (d.moving) {
+            if (d.moved && canPlace(c.gx, c.gy, d.moving.size, d.moving)) {
+                commit(
+                    buildings.map((b) =>
+                        b === d.moving ? { ...b, gx: c.gx, gy: c.gy } : b,
+                    ),
+                    walls,
+                );
+                setStatus('Bangunan dipindahkan.');
+            } else if (!d.moved) setPicked(d.moving.uid);
+            return;
+        }
+        if (
+            !d.moved &&
+            tool === 'place' &&
+            selected &&
+            canPlace(c.gx, c.gy, selected.size)
+        ) {
+            const b = {
+                uid: crypto.randomUUID(),
+                id: selected.id,
+                gx: c.gx,
+                gy: c.gy,
+                size: selected.size,
+                type: selected,
+            };
+            commit([...buildings, b], walls);
+            setPicked(b.uid);
+            setStatus(`${selected.name} ditambahkan.`);
+        }
+    };
+    const setZ = (value: number, p = { x: CW / 2, y: CH / 2 }) => {
+        const c = camera.current,
+            base = Math.min(CW / G.bgW, CH / G.bgH),
+            old = base * c.z,
+            before = {
+                x: c.x + (p.x - CW / 2) / old,
+                y: c.y + (p.y - CH / 2) / old,
+            };
+        c.z = Math.max(1, Math.min(10, value));
+        const after = {
+            x: c.x + (p.x - CW / 2) / (base * c.z),
+            y: c.y + (p.y - CH / 2) / (base * c.z),
+        };
+        c.x += before.x - after.x;
+        c.y += before.y - after.y;
+        setZoom(c.z);
+    };
+    const wheel = (e: WheelEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
+        setZ(
+            camera.current.z * (e.deltaY < 0 ? 1.15 : 1 / 1.15),
+            point(e as unknown as PointerEvent<HTMLCanvasElement>),
+        );
+    };
+    const choose = (t: Type) => {
+        setSelected(t);
+        setTool('place');
+        setPicked(null);
+        setStatus(`Mode tempatkan: ${t.name}.`);
+    },
+        z = Math.round(zoom * 100);
 
-    const updateZoom = (nextZoom: number, pivot: Point = { x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 }) => {
-        const camera = cameraRef.current;
-        const oldScale = Math.min(CANVAS_WIDTH / GRID.bgW, CANVAS_HEIGHT / GRID.bgH) * camera.zoom;
-        const before = { x: camera.x + (pivot.x - CANVAS_WIDTH / 2) / oldScale, y: camera.y + (pivot.y - CANVAS_HEIGHT / 2) / oldScale };
-        camera.zoom = Math.min(10, Math.max(1, nextZoom));
-        const newScale = Math.min(CANVAS_WIDTH / GRID.bgW, CANVAS_HEIGHT / GRID.bgH) * camera.zoom;
-        const after = { x: camera.x + (pivot.x - CANVAS_WIDTH / 2) / newScale, y: camera.y + (pivot.y - CANVAS_HEIGHT / 2) / newScale };
-        camera.x += before.x - after.x;
-        camera.y += before.y - after.y;
-        setZoom(camera.zoom);
+    const csrfToken = () =>
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.content ?? '';
+
+    const saveDraft = async (): Promise<string | null> => {
+        setStatus('Menyimpan draft…');
+        const thumbnail = canvas.current?.toDataURL('image/jpeg', 0.72) ?? null;
+        const response = await fetch(layoutId ? `/layouts/${layoutId}` : '/layouts', {
+            method: layoutId ? 'PUT' : 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json' },
+            body: JSON.stringify({ title: layoutTitle, town_hall: 18, payload: raw(), thumbnail_data: thumbnail }),
+        });
+        if (!response.ok) { setStatus('Draft gagal disimpan.'); return null; }
+        const data = await response.json() as { layout: ServerLayout };
+        setLayoutId(data.layout.id); setLayoutTitle(data.layout.title); setStatus('Draft tersimpan di server.'); return data.layout.id;
     };
 
-    const onWheel = (event: WheelEvent<HTMLCanvasElement>) => {
-        event.preventDefault();
-        updateZoom(cameraRef.current.zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15), pointerPosition(event as unknown as PointerEvent<HTMLCanvasElement>));
+    const loadLatestDraft = async () => {
+        const response = await fetch('/layouts/drafts', { headers: { Accept: 'application/json' } });
+        if (!response.ok) { setStatus('Daftar draft gagal dimuat.'); return; }
+        const data = await response.json() as { layouts: ServerLayout[] };
+        const draft = data.layouts[0];
+        if (!draft) { setStatus('Belum ada draft tersimpan di browser ini.'); return; }
+        restore(draft.payload); history.current = [draft.payload]; setHistoryIndex(0); setLayoutId(draft.id); setLayoutTitle(draft.title); setStatus(`Draft “${draft.title}” dimuat.`);
     };
 
-    const resetView = () => {
-        cameraRef.current = { x: GRID.bgW / 2, y: GRID.bgH / 2, zoom: 1 };
-        setZoom(1);
+    const shareDraft = async () => {
+        const id = layoutId ?? await saveDraft();
+        if (!id) return;
+        const response = await fetch(`/layouts/${id}/share`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json' }, body: JSON.stringify({ share_enabled: true }) });
+        if (!response.ok) { setStatus('Share link gagal dibuat.'); return; }
+        const data = await response.json() as { share_url: string };
+        await navigator.clipboard.writeText(data.share_url);
+        setStatus('Share link disalin ke clipboard.');
     };
 
-    const resetBuildings = () => {
-        occupiedRef.current = {};
-        setPlaced([]);
-    };
-
-    const zoomPercentage = useMemo(() => Math.round(zoom * 100), [zoom]);
-
+    useEffect(() => {
+        if (!sharedLayout) return;
+        restore(sharedLayout.payload); history.current = [sharedLayout.payload]; setHistoryIndex(0); setStatus(`Membuka layout publik: ${sharedLayout.title}.`);
+    }, [restore, sharedLayout]);
     return (
         <>
             <Head title="Layout Editor" />
             <main className="editor-shell editor-grid-pattern">
                 <header className="border-b border-[#f9ecdf]/10 bg-[#050405]/80 backdrop-blur-xl">
                     <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
-                        <Link href="/" className="group flex items-center gap-3">
-                            <span className="grid size-10 place-items-center rounded-xl bg-[#b9937c] text-lg font-black text-[#201818] shadow-[0_10px_28px_rgb(185_147_124_/_30%)] transition group-hover:scale-105">C</span>
-                            <span><span className="block text-base font-bold tracking-tight text-[#f9ecdf]">Clash Layout</span><span className="block text-xs text-[#b9937c]">Base Editor</span></span>
+                        <Link href="/" className="flex items-center gap-3">
+                            <span className="grid size-10 place-items-center rounded-xl bg-[#b9937c] text-lg font-black text-[#201818]">
+                                C
+                            </span>
+                            <span>
+                                <b className="block">Clash Layout</b>
+                                <small className="text-[#b9937c]">
+                                    Base Editor
+                                </small>
+                            </span>
                         </Link>
-                    <div className="hidden items-center gap-2 text-sm text-[#f9ecdf]/55 md:flex"><MousePointer2 size={15} /> Grid isometrik · {GRID.n}×{GRID.n} · TH18</div>
-                        <div className="rounded-full border border-[#b9937c]/30 bg-[#201818] px-3 py-1.5 text-xs font-semibold text-[#f9ecdf]">Prototype</div>
+                        <div className="hidden items-center gap-2 md:flex">
+                            <input value={layoutTitle} onChange={(event) => setLayoutTitle(event.target.value)} className="w-44 rounded-lg border border-[#f9ecdf]/15 bg-[#201818] px-3 py-2 text-xs text-[#f9ecdf] outline-none focus:border-[#b9937c]" aria-label="Judul layout" />
+                            <button type="button" onClick={loadLatestDraft} className="editor-tool !h-9 !min-h-0 !w-16"><FolderOpen size={15} />Load</button>
+                            <button type="button" onClick={saveDraft} className="editor-tool !h-9 !min-h-0 !w-16"><Save size={15} />Save</button>
+                            <button type="button" onClick={shareDraft} className="editor-tool !h-9 !min-h-0 !w-16"><Share2 size={15} />Share</button>
+                        </div>
+                        <span className="flex gap-2 text-xs text-[#b9937c]">
+                            <Save size={15} />
+                            Autosave lokal
+                        </span>
                     </div>
                 </header>
-
-                <section className="mx-auto grid max-w-[1500px] gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_290px] lg:px-8">
-                    <div className="overflow-hidden rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/80 p-3 shadow-2xl shadow-black/35">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-2 pt-1">
-                            <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9937c]">Editor kanvas</p><p className="mt-1 text-sm text-[#f9ecdf]/65">{status}</p></div>
-                            <div className="rounded-full bg-[#050405]/75 px-3 py-1.5 text-xs font-semibold text-[#f9ecdf]/75">Terpasang: <span className="text-[#f9ecdf]">{placed.length}</span></div>
+                <section className="mx-auto grid max-w-[1500px] gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_310px]">
+                    <div className="overflow-hidden rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/80 p-3">
+                        <div className="mb-3 flex justify-between px-2 text-sm">
+                            <span>{status}</span>
+                            <span>
+                                Bangunan {buildings.length} · Wall{' '}
+                                {walls.length}
+                            </span>
                         </div>
-                        <canvas ref={canvasRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onWheel={onWheel} className="block w-full touch-none rounded-2xl bg-[#050405] shadow-inner shadow-black/40" style={{ aspectRatio: `${CANVAS_WIDTH}/${CANVAS_HEIGHT}`, cursor: 'crosshair' }} />
+                        <canvas
+                            ref={canvas}
+                            onPointerDown={down}
+                            onPointerMove={move}
+                            onPointerUp={up}
+                            onWheel={wheel}
+                            className="block w-full touch-none rounded-2xl bg-[#050405]"
+                            style={{
+                                aspectRatio: `${CW}/${CH}`,
+                                cursor:
+                                    tool === 'wall'
+                                        ? 'cell'
+                                        : tool === 'place'
+                                          ? 'copy'
+                                          : 'grab',
+                            }}
+                        />
                     </div>
-
                     <aside className="space-y-4">
-                        <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5 shadow-xl shadow-black/20">
-                            <div className="mb-4 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9937c]">Bangunan</p><h1 className="mt-1 text-lg font-bold">Pilih dari palet</h1></div><Grid3X3 className="text-[#b9937c]" size={22} /></div>
+                        <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5">
+                            <p className="text-xs font-bold tracking-widest text-[#b9937c] uppercase">
+                                Tool
+                            </p>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                <button
+                                    className={`editor-tool ${tool === 'select' ? 'editor-tool-active' : ''}`}
+                                    onClick={() => {
+                                        setTool('select');
+                                        setSelected(null);
+                                    }}
+                                >
+                                    <BoxSelect size={16} />
+                                    Pilih
+                                </button>
+                                <button
+                                    className={`editor-tool ${tool === 'wall' ? 'editor-tool-active' : ''}`}
+                                    onClick={() => {
+                                        setTool('wall');
+                                        setSelected(null);
+                                    }}
+                                >
+                                    <Wall size={16} />
+                                    Wall
+                                </button>
+                                <button
+                                    className={`editor-tool ${blueprint ? 'editor-tool-active' : ''}`}
+                                    onClick={() => setBlueprint(!blueprint)}
+                                >
+                                    <Eye size={16} />
+                                    Blueprint
+                                </button>
+                                <button
+                                    disabled={!historyIndex}
+                                    className="editor-tool disabled:opacity-30"
+                                    onClick={undo}
+                                >
+                                    <Undo2 size={16} />
+                                    Undo
+                                </button>
+                                <button
+                                    disabled={
+                                        historyIndex ===
+                                        history.current.length - 1
+                                    }
+                                    className="editor-tool disabled:opacity-30"
+                                    onClick={redo}
+                                >
+                                    <Redo2 size={16} />
+                                    Redo
+                                </button>
+                                <button
+                                    className="editor-tool"
+                                    onClick={() => {
+                                        camera.current = {
+                                            x: G.bgW / 2,
+                                            y: G.bgH / 2,
+                                            z: 1,
+                                        };
+                                        setZoom(1);
+                                    }}
+                                >
+                                    <RotateCcw size={16} />
+                                    Reset view
+                                </button>
+                            </div>
+                        </section>
+                        <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5">
+                            <div className="mb-4 flex justify-between">
+                                <b>Bangunan</b>
+                                <Grid3X3 className="text-[#b9937c]" />
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
-                                {buildingTypes.map((type) => (
-                                    <button key={type.id} type="button" onClick={() => setSelectedType(type)} className={`group rounded-2xl border p-2 text-left transition ${selectedType?.id === type.id ? 'border-[#b9937c] bg-[#b9937c]/20 shadow-[0_0_0_1px_rgb(185_147_124_/_20%)]' : 'border-[#f9ecdf]/10 bg-[#050405]/40 hover:border-[#b9937c]/50'}`}>
-                                        <img src={assetUrl(type.file)} alt="" className="mx-auto h-14 w-full object-contain transition group-hover:scale-105" />
-                                        <span className="mt-1 block truncate text-xs font-semibold text-[#f9ecdf]">{type.name}</span>
-                                        <span className="block text-[10px] text-[#f9ecdf]/50">Lv. {type.level.level} · {type.size}×{type.size} tile</span>
+                                {types.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        onClick={() => choose(t)}
+                                        className={`rounded-2xl border p-2 text-left ${selected?.id === t.id ? 'border-[#b9937c] bg-[#b9937c]/20' : 'border-[#f9ecdf]/10 bg-[#050405]/40'}`}
+                                    >
+                                        <img
+                                            src={src(t.file)}
+                                            alt=""
+                                            className="mx-auto h-14 w-full object-contain"
+                                        />
+                                        <b className="block truncate text-xs">
+                                            {t.name}
+                                        </b>
+                                        <small>
+                                            Lv {t.level.level} · {t.size}×
+                                            {t.size}
+                                        </small>
                                     </button>
                                 ))}
                             </div>
                         </section>
-
-                        <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5 shadow-xl shadow-black/20">
-                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#b9937c]">Tampilan</p>
-                            <div className="mt-4 flex items-center gap-3"><button type="button" onClick={() => updateZoom(zoom - 0.1)} className="grid size-9 place-items-center rounded-xl bg-[#46454a] text-[#f9ecdf] transition hover:bg-[#736866]"><Minus size={16} /></button><input aria-label="Zoom" type="range" min="100" max="1000" step="10" value={zoomPercentage} onChange={(event) => updateZoom(Number(event.target.value) / 100)} className="h-1 w-full accent-[#b9937c]" /><button type="button" onClick={() => updateZoom(zoom + 0.1)} className="grid size-9 place-items-center rounded-xl bg-[#46454a] text-[#f9ecdf] transition hover:bg-[#736866]"><ZoomIn size={16} /></button></div>
-                            <div className="mt-2 flex justify-between text-xs text-[#f9ecdf]/55"><span>Zoom</span><span className="font-semibold text-[#f9ecdf]">{zoomPercentage}%</span></div>
-                            <label className="mt-5 flex cursor-pointer items-center justify-between rounded-xl bg-[#050405]/45 px-3 py-3 text-sm"><span className="flex items-center gap-2 text-[#f9ecdf]/75"><Grid3X3 size={16} className="text-[#b9937c]" /> Tampilkan grid</span><input type="checkbox" checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} className="size-4 accent-[#b9937c]" /></label>
-                            <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={resetView} className="flex items-center justify-center gap-2 rounded-xl border border-[#f9ecdf]/15 px-3 py-2.5 text-xs font-semibold transition hover:border-[#b9937c] hover:text-[#b9937c]"><RotateCcw size={14} /> Tampilan</button><button type="button" onClick={resetBuildings} className="flex items-center justify-center gap-2 rounded-xl bg-[#b9937c] px-3 py-2.5 text-xs font-bold text-[#201818] transition hover:bg-[#f9ecdf]"><Trash2 size={14} /> Reset</button></div>
+                        <section className="rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/90 p-5">
+                            <div className="flex items-center gap-3">
+                                <button
+                                    className="editor-tool !w-10"
+                                    onClick={() => setZ(zoom - 0.1)}
+                                >
+                                    <Minus size={16} />
+                                </button>
+                                <input
+                                    className="w-full accent-[#b9937c]"
+                                    type="range"
+                                    min="100"
+                                    max="1000"
+                                    step="10"
+                                    value={z}
+                                    onChange={(e) =>
+                                        setZ(+e.target.value / 100)
+                                    }
+                                />
+                                <button
+                                    className="editor-tool !w-10"
+                                    onClick={() => setZ(zoom + 0.1)}
+                                >
+                                    <ZoomIn size={16} />
+                                </button>
+                            </div>
+                            <label className="mt-4 flex justify-between text-sm">
+                                Grid{' '}
+                                <input
+                                    type="checkbox"
+                                    checked={grid}
+                                    onChange={(e) => setGrid(e.target.checked)}
+                                />
+                            </label>
+                            <button
+                                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#b9937c] p-3 text-xs font-bold text-[#201818]"
+                                onClick={() => {
+                                    commit([], []);
+                                    setPicked(null);
+                                }}
+                            >
+                                <Trash2 size={15} />
+                                Reset layout
+                            </button>
                         </section>
-
-                        <p className="rounded-2xl border border-[#b9937c]/20 bg-[#b9937c]/10 px-4 py-3 text-xs leading-relaxed text-[#f9ecdf]/70"><Search size={14} className="mr-1 inline text-[#b9937c]" /> Drag untuk menggeser kanvas. Scroll untuk zoom. Klik tile kosong untuk menempatkan bangunan; klik bangunan untuk menghapusnya.</p>
+                        <p className="rounded-2xl bg-[#b9937c]/10 p-4 text-xs text-[#f9ecdf]/70">
+                            Drag bangunan untuk memindahkan. Delete menghapus
+                            pilihan. Ctrl/Cmd+Z undo, Ctrl/Cmd+Y redo, W wall, V
+                            blueprint. Shift+drag wall menghapus.
+                        </p>
                     </aside>
                 </section>
-                <footer className="mx-auto max-w-[1500px] px-5 pb-6 text-center text-xs text-[#f9ecdf]/35 lg:px-8">Unofficial fan-made tool. Not endorsed by Supercell.</footer>
             </main>
         </>
     );
