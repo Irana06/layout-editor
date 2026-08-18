@@ -141,3 +141,25 @@
         @apply bg-background text-foreground;
     }
 }
+
+@layer base {
+    body {
+        font-family: 'Plus Jakarta Sans', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+    }
+}
+
+@layer components {
+    .editor-shell {
+        min-height: 100vh;
+        color: #f9ecdf;
+        background:
+            radial-gradient(circle at 14% 0%, rgb(185 147 124 / 22%), transparent 31rem),
+            radial-gradient(circle at 96% 100%, rgb(115 104 102 / 18%), transparent 34rem),
+            #050405;
+    }
+
+    .editor-grid-pattern {
+        background-image: radial-gradient(rgb(249 236 223 / 12%) 0.6px, transparent 0.6px);
+        background-size: 18px 18px;
+    }
+}
