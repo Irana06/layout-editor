@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     BoxSelect,
+    ChartNoAxesCombined,
     ClipboardPaste,
     Copy,
     FolderOpen,
@@ -11,6 +12,7 @@ import {
     Minus,
     Redo2,
     RotateCcw,
+    ScanSearch,
     Save,
     Share2,
     Trash2,
@@ -60,6 +62,7 @@ type Raw = {
     walls: { gx: number; gy: number }[];
 };
 type Tool = 'select' | 'place' | 'wall';
+type AnalysisMode = 'none' | 'range' | 'heatmap';
 type ServerLayout = {
     id: string;
     title: string;
@@ -102,6 +105,7 @@ export default function Editor({
         } | null>(null),
         [tool, setTool] = useState<Tool>('select'),
         [blueprint, setBlueprint] = useState(false),
+        [analysisMode, setAnalysisMode] = useState<AnalysisMode>('none'),
         [grid, setGrid] = useState(true),
         [zoom, setZoom] = useState(1),
         [historyIndex, setHistoryIndex] = useState(0),
@@ -259,6 +263,32 @@ export default function Editor({
                 ctx.stroke();
             }
         }
+        const defenses = buildings.filter((building) => building.type.level.dps && building.type.level.range && building.type.level.targetMode !== 'none');
+        const coverageAt = (gx: number, gy: number) => defenses.reduce((total, building) => {
+            const dx = gx + 0.5 - (building.gx + building.size / 2);
+            const dy = gy + 0.5 - (building.gy + building.size / 2);
+            return Math.hypot(dx, dy) <= (building.type.level.range ?? 0) ? total + (building.type.level.dps ?? 0) : total;
+        }, 0);
+
+        if (analysisMode === 'heatmap') {
+            for (let gy = 0; gy < G.n; gy += 1) for (let gx = 0; gx < G.n; gx += 1) {
+                const dps = coverageAt(gx, gy);
+                diamond(gx, gy);
+                if (dps === 0) ctx.fillStyle = 'rgb(64 15 15 / .26)';
+                else ctx.fillStyle = `rgb(255 72 43 / ${Math.min(.72, .12 + dps / 180)})`;
+                ctx.fill();
+            }
+        }
+        if (analysisMode === 'range') {
+            defenses.forEach((building) => {
+                const range = building.type.level.range ?? 0;
+                const centerX = building.gx + building.size / 2, centerY = building.gy + building.size / 2;
+                diamond(centerX - range, centerY - range, range * 2);
+                ctx.strokeStyle = building.type.level.targetMode === 'ground' ? 'rgb(249 236 223 / .7)' : 'rgb(185 147 124 / .85)';
+                ctx.lineWidth = Math.max(1, s); ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
+            });
+        }
+
         walls.forEach((w) => {
             if (blueprint) {
                 diamond(w.gx, w.gy);
@@ -334,7 +364,7 @@ export default function Editor({
     }, [types]);
     useEffect(() => {
         draw(); /* eslint-disable-next-line react-hooks/exhaustive-deps */
-    }, [buildings, walls, grid, blueprint, selectedIds, zoom]);
+    }, [analysisMode, buildings, walls, grid, blueprint, selectedIds, zoom]);
     useEffect(() => {
         try {
             const saved = localStorage.getItem(STORE);
@@ -735,6 +765,11 @@ export default function Editor({
                                     <RotateCcw size={16} />
                                     Reset view
                                 </button>
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 gap-2">
+                                <button type="button" onClick={() => setAnalysisMode(analysisMode === 'range' ? 'none' : 'range')} className={`editor-tool ${analysisMode === 'range' ? 'editor-tool-active' : ''}`}><ScanSearch size={16} />Range</button>
+                                <button type="button" onClick={() => setAnalysisMode(analysisMode === 'heatmap' ? 'none' : 'heatmap')} className={`editor-tool ${analysisMode === 'heatmap' ? 'editor-tool-active' : ''}`}><ChartNoAxesCombined size={16} />Heatmap</button>
+                                <span className="flex items-center justify-center rounded-xl border border-[#f9ecdf]/10 px-2 text-center text-[10px] text-[#f9ecdf]/50">Gelap = blind spot</span>
                             </div>
                             <div className="mt-2 grid grid-cols-2 gap-2">
                                 <button type="button" onClick={copySelection} className="editor-tool"><Copy size={16} />Copy</button>
