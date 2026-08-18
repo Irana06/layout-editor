@@ -1,25 +1,16 @@
 import { Head, Link } from '@inertiajs/react';
 import { Grid3X3, Minus, MousePointer2, RotateCcw, Search, Trash2, ZoomIn } from 'lucide-react';
 import { type PointerEvent, useEffect, useMemo, useRef, useState, type WheelEvent } from 'react';
+import { getEditorPalette, type EditorPaletteBuilding } from '@/data/game-catalog';
 
 const CANVAS_WIDTH = 1000;
 const CANVAS_HEIGHT = 760;
 const GRID = { bgW: 3705, bgH: 2545, tileW: 56, tileH: 42, originX: 1895, originY: 250, n: 44 };
-const ASSET_ROOT = '/game-assets/';
+const ASSET_ROOT = '/game/';
 
-type ManifestBuilding = { id: string; name: string; file: string };
-type Manifest = { buildings: ManifestBuilding[] };
-type BuildingType = { id: string; name: string; size: number; file: string };
+type BuildingType = EditorPaletteBuilding;
 type PlacedBuilding = { gx: number; gy: number; size: number; type: BuildingType };
 type Point = { x: number; y: number };
-
-const paletteDefinition = [
-    { id: 'th', name: 'Town Hall', size: 4, matcher: /town-hall\/Town Hall18\.png$/ },
-    { id: 'gm', name: 'Gold Mine', size: 3, matcher: /gold-mine\/Gold Mine\d+\.png$/ },
-    { id: 'at', name: 'Archer Tower', size: 3, matcher: /archer-tower\/Archer Tower\d+\.png$/ },
-    { id: 'cn', name: 'Cannon', size: 3, matcher: /cannon\/Cannon\d+\.png$/ },
-    { id: 'inf', name: 'Inferno Tower', size: 4, matcher: /inferno-tower\/Inferno Tower\d+\.png$/ },
-] as const;
 
 function tileKey(gx: number, gy: number) {
     return `${gx},${gy}`;
@@ -31,36 +22,12 @@ export default function Editor() {
     const imagesRef = useRef(new Map<string, HTMLImageElement>());
     const occupiedRef = useRef<Record<string, PlacedBuilding>>({});
     const dragRef = useRef({ active: false, moved: false, lastX: 0, lastY: 0 });
-    const [buildingTypes, setBuildingTypes] = useState<BuildingType[]>([]);
+    const buildingTypes = useMemo<BuildingType[]>(() => getEditorPalette(18), []);
     const [selectedType, setSelectedType] = useState<BuildingType | null>(null);
     const [placed, setPlaced] = useState<PlacedBuilding[]>([]);
     const [showGrid, setShowGrid] = useState(true);
     const [zoom, setZoom] = useState(1);
-    const [status, setStatus] = useState('Memuat katalog aset…');
-
-    useEffect(() => {
-        let cancelled = false;
-
-        fetch(`${ASSET_ROOT}buildings-source/manifest.json`)
-            .then((response) => {
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                return response.json() as Promise<Manifest>;
-            })
-            .then((manifest) => {
-                if (cancelled) return;
-                const types = paletteDefinition.flatMap((item) => {
-                    const asset = manifest.buildings.find((building) => item.matcher.test(building.file));
-                    return asset ? [{ id: item.id, name: item.name, size: item.size, file: asset.file }] : [];
-                });
-                setBuildingTypes(types);
-                setStatus(types.length === paletteDefinition.length ? 'Pilih bangunan, lalu klik tile untuk menempatkan.' : 'Sebagian sprite tidak ditemukan di katalog aset.');
-            })
-            .catch(() => setStatus('Katalog aset tidak dapat dimuat. Jalankan aplikasi melalui Laravel.'));
-
-        return () => {
-            cancelled = true;
-        };
-    }, []);
+    const [status] = useState('Pilih bangunan, lalu klik tile untuk menempatkan.');
 
     const assetUrl = (file: string) => `${ASSET_ROOT}${file}`;
 
@@ -268,7 +235,7 @@ export default function Editor() {
                             <span className="grid size-10 place-items-center rounded-xl bg-[#b9937c] text-lg font-black text-[#201818] shadow-[0_10px_28px_rgb(185_147_124_/_30%)] transition group-hover:scale-105">C</span>
                             <span><span className="block text-base font-bold tracking-tight text-[#f9ecdf]">Clash Layout</span><span className="block text-xs text-[#b9937c]">Base Editor</span></span>
                         </Link>
-                        <div className="hidden items-center gap-2 text-sm text-[#f9ecdf]/55 md:flex"><MousePointer2 size={15} /> Grid isometrik · {GRID.n}×{GRID.n}</div>
+                    <div className="hidden items-center gap-2 text-sm text-[#f9ecdf]/55 md:flex"><MousePointer2 size={15} /> Grid isometrik · {GRID.n}×{GRID.n} · TH18</div>
                         <div className="rounded-full border border-[#b9937c]/30 bg-[#201818] px-3 py-1.5 text-xs font-semibold text-[#f9ecdf]">Prototype</div>
                     </div>
                 </header>
@@ -290,7 +257,7 @@ export default function Editor() {
                                     <button key={type.id} type="button" onClick={() => setSelectedType(type)} className={`group rounded-2xl border p-2 text-left transition ${selectedType?.id === type.id ? 'border-[#b9937c] bg-[#b9937c]/20 shadow-[0_0_0_1px_rgb(185_147_124_/_20%)]' : 'border-[#f9ecdf]/10 bg-[#050405]/40 hover:border-[#b9937c]/50'}`}>
                                         <img src={assetUrl(type.file)} alt="" className="mx-auto h-14 w-full object-contain transition group-hover:scale-105" />
                                         <span className="mt-1 block truncate text-xs font-semibold text-[#f9ecdf]">{type.name}</span>
-                                        <span className="block text-[10px] text-[#f9ecdf]/50">{type.size}×{type.size} tile</span>
+                                        <span className="block text-[10px] text-[#f9ecdf]/50">Lv. {type.level.level} · {type.size}×{type.size} tile</span>
                                     </button>
                                 ))}
                             </div>
