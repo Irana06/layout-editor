@@ -646,7 +646,7 @@ export default function Editor({
     return (
         <>
             <Head title="Layout Editor" />
-            <main className="editor-shell editor-grid-pattern">
+            <main className="editor-shell editor-grid-pattern editor-light">
                 <header className="border-b border-[#f9ecdf]/10 bg-[#050405]/80 backdrop-blur-xl">
                     <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 lg:px-8">
                         <Link href="/" className="flex items-center gap-3">
@@ -672,7 +672,19 @@ export default function Editor({
                         </span>
                     </div>
                 </header>
-                <section className="mx-auto grid max-w-[1500px] gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_310px]">
+                <section className="editor-hero">
+                    <div className="editor-hero-orb editor-hero-orb-right" />
+                    <div className="editor-hero-orb editor-hero-orb-left" />
+                    <div className="relative mx-auto flex max-w-[1500px] flex-col gap-5 px-5 py-10 lg:flex-row lg:items-end lg:justify-between lg:px-8">
+                        <div>
+                            <div className="editor-kicker"><span /> Home Village · TH18</div>
+                            <h1>Rancang pertahanan dengan <em>presisi.</em></h1>
+                            <p>Susun, uji jangkauan, dan simpan base terbaikmu dalam satu workspace yang tenang dan fokus.</p>
+                        </div>
+                        <div className="editor-hero-stats"><div><strong>{buildings.length}</strong><span>Bangunan</span></div><div><strong>{walls.length}</strong><span>Wall</span></div><div><strong>{analysisMode === 'none' ? '—' : 'ON'}</strong><span>Analitik</span></div></div>
+                    </div>
+                </section>
+                <section className="editor-workspace mx-auto grid max-w-[1500px] gap-6 px-5 pb-10 lg:grid-cols-[minmax(0,1fr)_310px] lg:px-8">
                     <div className="overflow-hidden rounded-3xl border border-[#f9ecdf]/10 bg-[#201818]/80 p-3">
                         <div className="mb-3 flex justify-between px-2 text-sm">
                             <span>{status}</span>
