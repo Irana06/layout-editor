@@ -40,7 +40,10 @@ export type BuildingUnlockRule = {
     id: number;
     building_type_id: number;
     th_level: number;
+    /** 0 = building belum terbuka di TH ini. */
     max_building_level: number;
+    /** null = tidak dibatasi. */
+    max_count: number | null;
 };
 
 export type LayoutPlacement = { building_type_id: number; level: number; gx: number; gy: number };

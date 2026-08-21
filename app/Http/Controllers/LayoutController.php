@@ -127,18 +127,43 @@ class LayoutController extends Controller
     }
 
     /**
-     * Server-side TH-level gating — never trust the frontend-only check.
+     * Server-side TH gating — never trust the frontend-only check. Enforces both the
+     * unlocked level cap and the per-Town-Hall placement count. Deny-by-default: a
+     * building with no configured rule at this Town Hall cannot be placed at all.
      *
      * @param  list<array{building_type_id: int, level: int, gx: int, gy: int}>  $placements
      */
     private function validateThLevelCap(int $thLevel, array $placements): void
     {
+        $rules = BuildingLevelRules::forThLevel($thLevel);
+        $names = BuildingType::query()
+            ->whereIn('id', array_values(array_unique(array_column($placements, 'building_type_id'))))
+            ->pluck('name', 'id');
+        $counts = [];
+
         foreach ($placements as $index => $placement) {
-            $maxLevel = BuildingLevelRules::maxLevelFor($placement['building_type_id'], $thLevel);
+            $typeId = $placement['building_type_id'];
+            $name = $names[$typeId] ?? "building #{$typeId}";
+            $maxLevel = (int) ($rules[$typeId]->max_building_level ?? 0);
+
+            if ($maxLevel === 0) {
+                throw ValidationException::withMessages([
+                    "data.{$index}.level" => "{$name} belum terbuka di Town Hall level {$thLevel}.",
+                ]);
+            }
 
             if ($placement['level'] > $maxLevel) {
                 throw ValidationException::withMessages([
-                    "data.{$index}.level" => "Level {$placement['level']} melebihi batas yang diizinkan (maks {$maxLevel}) untuk Town Hall level {$thLevel}.",
+                    "data.{$index}.level" => "{$name} level {$placement['level']} melebihi batas yang diizinkan (maks {$maxLevel}) untuk Town Hall level {$thLevel}.",
+                ]);
+            }
+
+            $counts[$typeId] = ($counts[$typeId] ?? 0) + 1;
+            $maxCount = $rules[$typeId]->max_count ?? null;
+
+            if ($maxCount !== null && $counts[$typeId] > $maxCount) {
+                throw ValidationException::withMessages([
+                    "data.{$index}" => "Jumlah {$name} melebihi batas yang diizinkan (maks {$maxCount}) untuk Town Hall level {$thLevel}.",
                 ]);
             }
         }
@@ -158,23 +183,28 @@ class LayoutController extends Controller
 
         $typeIds = array_values(array_unique(array_column($placements, 'building_type_id')));
         $types = BuildingType::query()->whereIn('id', $typeIds)->get()->keyBy('id');
-        $levels = BuildingLevel::query()
-            ->whereIn('building_type_id', $types->keys())
-            ->get()
-            ->groupBy('building_type_id')
-            ->map(fn ($group) => $group->keyBy('level'));
+
+        // Flat "typeId:level" => footprint map. A nested grouped collection confuses static
+        // analysis about nullability, and the lookup below reads better this way.
+        $footprints = [];
+        foreach (BuildingLevel::query()->whereIn('building_type_id', $typeIds)->get() as $buildingLevel) {
+            $footprints["{$buildingLevel->building_type_id}:{$buildingLevel->level}"] = [
+                'width' => $buildingLevel->grid_width,
+                'height' => $buildingLevel->grid_height,
+            ];
+        }
 
         $occupied = [];
 
         foreach ($placements as $index => $placement) {
             $type = $types->get($placement['building_type_id']);
-            $level = $levels->get($placement['building_type_id'])?->get($placement['level']);
             if (! $type) {
                 continue;
             }
 
-            $width = $level?->grid_width ?? $type->default_grid_width;
-            $height = $level?->grid_height ?? $type->default_grid_height;
+            $footprint = $footprints["{$placement['building_type_id']}:{$placement['level']}"] ?? null;
+            $width = $footprint['width'] ?? $type->default_grid_width;
+            $height = $footprint['height'] ?? $type->default_grid_height;
 
             if ($scenery->grid_n < $placement['gx'] + $width || $scenery->grid_n < $placement['gy'] + $height) {
                 throw ValidationException::withMessages([

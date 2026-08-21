@@ -15,6 +15,7 @@ createInertiaApp({
             case name === 'welcome':
             case name === 'editor':
             case name === 'calibrate':
+            case name === 'unlock-rules':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;

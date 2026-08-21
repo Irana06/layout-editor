@@ -23,6 +23,9 @@ class ImportLegacyAssets extends Command
 
     protected $description = 'Import basecode editor building and scenery assets into building_types/building_levels/sceneries.';
 
+    /** Highest level number treated as a real building level; above this it's a naming artifact. */
+    private const MAX_PLAUSIBLE_LEVEL = 60;
+
     /** @var array<string, array<string, mixed>> */
     private array $buildingManifest = [];
 
@@ -112,6 +115,16 @@ class ImportLegacyAssets extends Command
             if ($level === null) {
                 $this->warn("Could not parse a level number from '{$basename}', defaulting to level 1.");
                 $level = 1;
+            }
+
+            // Some legacy files are seasonal skins named with a year (e.g. "Air Defense2012"),
+            // which parses as an absurd level. Real levels top out around 21, so anything past
+            // the plausibility cap is a naming artifact rather than a level — skip it and let
+            // the operator add it deliberately from the Calibrate page if they want it.
+            if ($level > self::MAX_PLAUSIBLE_LEVEL) {
+                $this->warn("Skipping '{$basename}' — parsed level {$level} exceeds the plausible maximum (".self::MAX_PLAUSIBLE_LEVEL.'), likely a year or naming artifact.');
+
+                continue;
             }
 
             $key = implode('|', [$category, $subfolder, Str::lower($typeName), $level]);

@@ -8,6 +8,7 @@ use App\Http\Controllers\EditorController;
 use App\Http\Controllers\LayoutController;
 use App\Http\Controllers\PublicLayoutController;
 use App\Http\Controllers\SceneryController;
+use App\Http\Controllers\UnlockRulePageController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -30,7 +31,9 @@ Route::delete('/building-types/{buildingType}', [BuildingTypeController::class, 
 Route::post('/building-types/{buildingType}/levels', [BuildingLevelController::class, 'store'])->name('building-levels.store');
 Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update'])->name('building-levels.update');
 Route::delete('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'destroy'])->name('building-levels.destroy');
+Route::get('/unlock-rules', [UnlockRulePageController::class, 'index'])->name('unlock-rules');
 Route::get('/building-unlock-rules', [BuildingUnlockRuleController::class, 'index'])->name('building-unlock-rules.index');
+Route::put('/building-unlock-rules/bulk', [BuildingUnlockRuleController::class, 'bulkUpdate'])->name('building-unlock-rules.bulk');
 Route::post('/building-unlock-rules', [BuildingUnlockRuleController::class, 'store'])->name('building-unlock-rules.store');
 Route::patch('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'update'])->name('building-unlock-rules.update');
 Route::delete('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'destroy'])->name('building-unlock-rules.destroy');

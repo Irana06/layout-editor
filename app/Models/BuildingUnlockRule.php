@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BuildingUnlockRule extends Model
 {
     protected $fillable = [
-        'building_type_id', 'th_level', 'max_building_level',
+        'building_type_id', 'th_level', 'max_building_level', 'max_count',
     ];
 
     /** @return BelongsTo<BuildingType, $this> */
