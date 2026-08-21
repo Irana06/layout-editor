@@ -9,7 +9,7 @@
 
 @theme {
     --font-sans:
-        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Plus Jakarta Sans', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
@@ -59,77 +59,85 @@
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-ring: var(--sidebar-ring);
+
+    /* Brand palette (5 colors only) — exposed as raw utilities (bg-ink, text-sand, etc.)
+       for the rare case a component needs the literal brand color rather than a semantic token. */
+    --color-ink: #071a35;
+    --color-navy: #18385f;
+    --color-slate: #445d7a;
+    --color-sand: #e8d6b6;
+    --color-cream: #fff9ef;
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --background: #fff9ef;
+    --foreground: #071a35;
+    --card: #fff9ef;
+    --card-foreground: #071a35;
+    --popover: #fff9ef;
+    --popover-foreground: #071a35;
+    --primary: #18385f;
+    --primary-foreground: #fff9ef;
+    --secondary: #e8d6b6;
+    --secondary-foreground: #071a35;
+    --muted: #e8d6b6;
+    --muted-foreground: #445d7a;
+    --accent: #e8d6b6;
+    --accent-foreground: #071a35;
     --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
+    --destructive-foreground: oklch(0.985 0 0);
+    --border: rgb(68 93 122 / 20%);
+    --input: rgb(68 93 122 / 20%);
+    --ring: #18385f;
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    --radius: 0.875rem;
+    --sidebar: #fff9ef;
+    --sidebar-foreground: #071a35;
+    --sidebar-primary: #18385f;
+    --sidebar-primary-foreground: #fff9ef;
+    --sidebar-accent: #e8d6b6;
+    --sidebar-accent-foreground: #071a35;
+    --sidebar-border: rgb(68 93 122 / 20%);
+    --sidebar-ring: #18385f;
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.145 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.145 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.985 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --background: #071a35;
+    --foreground: #fff9ef;
+    --card: #18385f;
+    --card-foreground: #fff9ef;
+    --popover: #18385f;
+    --popover-foreground: #fff9ef;
+    --primary: #e8d6b6;
+    --primary-foreground: #071a35;
+    --secondary: #445d7a;
+    --secondary-foreground: #fff9ef;
+    --muted: #445d7a;
+    --muted-foreground: rgb(232 214 182 / 70%);
+    --accent: #445d7a;
+    --accent-foreground: #fff9ef;
     --destructive: oklch(0.396 0.141 25.723);
     --destructive-foreground: oklch(0.637 0.237 25.331);
-    --border: oklch(0.269 0 0);
-    --input: oklch(0.269 0 0);
-    --ring: oklch(0.439 0 0);
+    --border: rgb(232 214 182 / 14%);
+    --input: rgb(232 214 182 / 14%);
+    --ring: #e8d6b6;
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
     --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.985 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(0.269 0 0);
-    --sidebar-ring: oklch(0.439 0 0);
+    --sidebar: #071a35;
+    --sidebar-foreground: #fff9ef;
+    --sidebar-primary: #e8d6b6;
+    --sidebar-primary-foreground: #071a35;
+    --sidebar-accent: #445d7a;
+    --sidebar-accent-foreground: #fff9ef;
+    --sidebar-border: rgb(232 214 182 / 14%);
+    --sidebar-ring: #e8d6b6;
 }
 
 @layer base {
@@ -142,117 +150,14 @@
     }
 }
 
-@layer base {
-    body {
-        font-family: 'Plus Jakarta Sans', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+@layer utilities {
+    /* Low-opacity isometric/diamond texture for decorative section backgrounds. Keep opacity
+       very low (~3-8%) — it's a texture, not a visual element competing with content. */
+    .bg-iso-pattern {
+        background-image:
+            linear-gradient(45deg, currentColor 1px, transparent 1px),
+            linear-gradient(-45deg, currentColor 1px, transparent 1px);
+        background-size: 28px 28px;
+        opacity: 0.05;
     }
-}
-
-@layer components {
-    .editor-shell {
-        min-height: 100vh;
-        color: #f9ecdf;
-        background:
-            radial-gradient(circle at 14% 0%, rgb(185 147 124 / 22%), transparent 31rem),
-            radial-gradient(circle at 96% 100%, rgb(115 104 102 / 18%), transparent 34rem),
-            #050405;
-    }
-
-    .editor-grid-pattern {
-        background-image: radial-gradient(rgb(249 236 223 / 12%) 0.6px, transparent 0.6px);
-        background-size: 18px 18px;
-    }
-
-    .editor-tool {
-        display: flex; min-height: 2.5rem; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; border: 1px solid rgb(249 236 223 / .1); border-radius: .75rem; background: rgb(5 4 5 / .45); color: rgb(249 236 223 / .7); font-size: .6875rem; font-weight: 700; transition: 150ms ease;
-    }
-    .editor-tool:hover { border-color: rgb(185 147 124 / .55); color: #f9ecdf; }
-    .editor-tool-active { border-color: #b9937c; background: rgb(185 147 124 / .2); color: #f9ecdf; }
-
-    .editor-light {
-        min-height: 100vh;
-        color: #201818;
-        background: #f9ecdf;
-        background-image: radial-gradient(rgb(185 147 124 / .16) .65px, transparent .65px);
-        background-size: 20px 20px;
-    }
-
-    .editor-light > header {
-        position: sticky; top: 0; z-index: 20;
-        border-color: rgb(115 104 102 / .15) !important;
-        background: rgb(249 236 223 / .88) !important;
-        color: #201818;
-        box-shadow: 0 8px 28px rgb(32 24 24 / .04);
-    }
-    .editor-light > header small, .editor-light > header .text-\[\#b9937c\] { color: #b9937c !important; }
-    .editor-light > header input { border-color: rgb(115 104 102 / .2) !important; background: rgb(255 255 255 / .8) !important; color: #201818 !important; }
-
-    .editor-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #f9ecdf 0%, #f6e5d6 100%); }
-    .editor-hero-orb { position: absolute; border-radius: 999px; filter: blur(6px); opacity: .52; }
-    .editor-hero-orb-right { width: 28rem; height: 28rem; right: -9rem; top: -14rem; background: #b9937c; }
-    .editor-hero-orb-left { width: 18rem; height: 18rem; left: -9rem; bottom: -13rem; background: #736866; opacity: .14; }
-    .editor-kicker { display: inline-flex; align-items: center; gap: .5rem; border: 1px solid rgb(185 147 124 / .3); border-radius: 999px; background: rgb(255 255 255 / .65); padding: .35rem .75rem; color: #736866; font-size: .7rem; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; }
-    .editor-kicker span { width: .5rem; height: .5rem; border-radius: 999px; background: #b9937c; box-shadow: 0 0 0 4px rgb(185 147 124 / .16); }
-    .editor-hero h1 { max-width: 44rem; margin-top: 1rem; color: #201818; font-size: clamp(2.1rem, 4vw, 3.8rem); font-weight: 800; letter-spacing: -.06em; line-height: 1.05; }
-    .editor-hero h1 em { color: #b9937c; font-style: normal; }
-    .editor-hero p { max-width: 37rem; margin-top: 1rem; color: #736866; font-size: 1rem; line-height: 1.75; }
-    .editor-hero-stats { display: flex; overflow: hidden; border: 1px solid rgb(115 104 102 / .12); border-radius: 1.25rem; background: rgb(255 255 255 / .72); box-shadow: 0 16px 32px rgb(32 24 24 / .06); backdrop-filter: blur(12px); }
-    .editor-hero-stats div { min-width: 5.6rem; padding: 1rem; text-align: center; border-left: 1px solid rgb(115 104 102 / .12); }
-    .editor-hero-stats div:first-child { border-left: 0; }
-    .editor-hero-stats strong { display: block; color: #201818; font-size: 1.1rem; }
-    .editor-hero-stats span { color: #736866; font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-
-    .editor-light .editor-workspace > div,
-    .editor-light aside > section { border-color: rgb(115 104 102 / .14) !important; background: rgb(255 255 255 / .78) !important; color: #201818; box-shadow: 0 18px 42px -22px rgb(32 24 24 / .2); backdrop-filter: blur(14px); }
-    .editor-light .editor-workspace > div { padding: 1rem; }
-    .editor-light canvas { border: 1px solid rgb(115 104 102 / .14); box-shadow: 0 18px 34px rgb(32 24 24 / .16); }
-    .editor-light .editor-workspace > div > div { color: #736866; }
-    .editor-light aside b, .editor-light aside label { color: #201818; }
-    .editor-light aside small { color: #736866; }
-    .editor-light .editor-tool { border-color: rgb(115 104 102 / .16); background: #fffaf4; color: #736866; }
-    .editor-light .editor-tool:hover { border-color: #b9937c; color: #201818; box-shadow: 0 8px 16px rgb(185 147 124 / .12); }
-    .editor-light .editor-tool-active { border-color: #b9937c; background: #b9937c; color: #f9ecdf; }
-    .editor-light .bg-\[\#050405\]\/40 { background: #fffaf4 !important; }
-    .editor-light .border-\[\#f9ecdf\]\/10 { border-color: rgb(115 104 102 / .14) !important; }
-    .editor-light .text-\[\#f9ecdf\]\/50, .editor-light .text-\[\#f9ecdf\]\/70 { color: #736866 !important; }
-    .editor-light .bg-\[\#b9937c\]\/10 { background: rgb(185 147 124 / .12) !important; color: #736866 !important; }
-    .editor-light .bg-\[\#b9937c\] { background: #b9937c !important; }
-
-    /* Dark luxury variant: the same landing-page hierarchy without pastel surfaces. */
-    .editor-light {
-        color: #f9ecdf;
-        background: #050405;
-        background-image: radial-gradient(rgb(185 147 124 / .09) .65px, transparent .65px);
-    }
-    .editor-light > header {
-        border-color: rgb(249 236 223 / .08) !important;
-        background: rgb(5 4 5 / .88) !important;
-        color: #f9ecdf;
-        box-shadow: 0 8px 28px rgb(0 0 0 / .28);
-    }
-    .editor-light > header b { color: #f9ecdf; }
-    .editor-light > header input { border-color: rgb(249 236 223 / .12) !important; background: #201818 !important; color: #f9ecdf !important; }
-    .editor-hero { background: linear-gradient(125deg, #050405 0%, #201818 58%, #2a211f 100%); }
-    .editor-hero-orb-right { background: #b9937c; opacity: .18; }
-    .editor-hero-orb-left { background: #736866; opacity: .16; }
-    .editor-kicker { border-color: rgb(185 147 124 / .38); background: rgb(185 147 124 / .1); color: #b9937c; }
-    .editor-hero h1 { color: #f9ecdf; }
-    .editor-hero p { color: #b7aaa2; }
-    .editor-hero-stats { border-color: rgb(249 236 223 / .1); background: rgb(5 4 5 / .52); box-shadow: 0 16px 32px rgb(0 0 0 / .3); }
-    .editor-hero-stats div { border-color: rgb(249 236 223 / .1); }
-    .editor-hero-stats strong { color: #f9ecdf; }
-    .editor-hero-stats span { color: #b9937c; }
-    .editor-light .editor-workspace > div,
-    .editor-light aside > section { border-color: rgb(249 236 223 / .09) !important; background: rgb(32 24 24 / .84) !important; color: #f9ecdf; box-shadow: 0 18px 42px -22px rgb(0 0 0 / .65); }
-    .editor-light canvas { border-color: rgb(249 236 223 / .1); box-shadow: 0 18px 34px rgb(0 0 0 / .44); }
-    .editor-light .editor-workspace > div > div { color: #c8bcb4; }
-    .editor-light aside b, .editor-light aside label { color: #f9ecdf; }
-    .editor-light aside small { color: #b7aaa2; }
-    .editor-light .editor-tool { border-color: rgb(249 236 223 / .1); background: #050405; color: #b7aaa2; }
-    .editor-light .editor-tool:hover { border-color: #b9937c; color: #f9ecdf; box-shadow: 0 8px 16px rgb(185 147 124 / .13); }
-    .editor-light .editor-tool-active { background: #b9937c; border-color: #b9937c; color: #201818; }
-    .editor-light .bg-\[\#050405\]\/40 { background: #050405 !important; }
-    .editor-light .border-\[\#f9ecdf\]\/10 { border-color: rgb(249 236 223 / .1) !important; }
-    .editor-light .text-\[\#f9ecdf\]\/50, .editor-light .text-\[\#f9ecdf\]\/70 { color: #b7aaa2 !important; }
-    .editor-light .bg-\[\#b9937c\]\/10 { background: rgb(185 147 124 / .12) !important; color: #d8c7bb !important; }
 }
