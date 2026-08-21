@@ -17,30 +17,36 @@ export function BuildingPalette({ buildingTypes, unlockRules }: Props) {
     const { state, dispatch } = useEditor();
     const [search, setSearch] = useState('');
 
+    /**
+     * Grouped by category only. Grouping by subfolder as well produced one grid per
+     * subfolder, and since almost every subfolder holds a single building type that
+     * collapsed the palette into one item per row.
+     *
+     * Buildings not yet unlocked at the current Town Hall are omitted entirely rather than
+     * greyed out, so the palette only ever shows what can actually be built.
+     */
     const grouped = useMemo(() => {
-        const placeable = buildingTypes.filter((t) => !t.is_town_hall && t.levels.length > 0);
-        const filtered = search.trim() ? placeable.filter((t) => t.name.toLowerCase().includes(search.trim().toLowerCase())) : placeable;
+        const query = search.trim().toLowerCase();
+        const visible = buildingTypes.filter(
+            (t) =>
+                !t.is_town_hall &&
+                t.levels.length > 0 &&
+                maxLevelFor(t.id, state.thLevel, unlockRules) > 0 &&
+                (query === '' || t.name.toLowerCase().includes(query)),
+        );
 
-        const byCategory = new Map<string, Map<string, BuildingType[]>>();
+        const byCategory = new Map<string, BuildingType[]>();
 
-        for (const type of filtered) {
-            const sub = type.subfolder ?? '';
-
+        for (const type of visible) {
             if (!byCategory.has(type.category)) {
-byCategory.set(type.category, new Map());
-}
+                byCategory.set(type.category, []);
+            }
 
-            const bySub = byCategory.get(type.category)!;
-
-            if (!bySub.has(sub)) {
-bySub.set(sub, []);
-}
-
-            bySub.get(sub)!.push(type);
+            byCategory.get(type.category)!.push(type);
         }
 
         return byCategory;
-    }, [buildingTypes, search]);
+    }, [buildingTypes, search, state.thLevel, unlockRules]);
 
     /** How many of each building type are already on the grid — drives the max_count limit. */
     const placedCounts = useMemo(() => {
@@ -101,68 +107,60 @@ return;
                 </div>
             )}
             <div className="max-h-[420px] space-y-3 overflow-y-auto pr-1">
-                {[...grouped.entries()].map(([category, bySub]) => (
+                {[...grouped.entries()].map(([category, types]) => (
                     <div key={category}>
                         <p className="text-muted-foreground mb-1 text-[10px] font-semibold tracking-wide uppercase">{category}</p>
-                        {[...bySub.entries()].map(([sub, types]) => (
-                            <div key={sub || '(root)'} className="mb-2 grid grid-cols-3 gap-1.5">
-                                {types.map((type) => {
-                                    const maxLevel = maxLevelFor(type.id, state.thLevel, unlockRules);
-                                    const maxCount = maxCountFor(type.id, state.thLevel, unlockRules);
-                                    const unlocked = type.levels.filter((l) => l.level <= maxLevel);
-                                    const placedCount = placedCounts.get(type.id) ?? 0;
-                                    const atLimit = maxCount !== null && placedCount >= maxCount;
-                                    const gated = unlocked.length === 0 || atLimit;
-                                    const isArmed = state.armed?.buildingTypeId === type.id;
-                                    const thumbLevel = unlocked[unlocked.length - 1] ?? type.levels[0];
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {types.map((type) => {
+                                const maxLevel = maxLevelFor(type.id, state.thLevel, unlockRules);
+                                const maxCount = maxCountFor(type.id, state.thLevel, unlockRules);
+                                const unlocked = type.levels.filter((l) => l.level <= maxLevel);
+                                const placedCount = placedCounts.get(type.id) ?? 0;
+                                const atLimit = maxCount !== null && placedCount >= maxCount;
+                                const isArmed = state.armed?.buildingTypeId === type.id;
+                                const thumbLevel = unlocked[unlocked.length - 1] ?? type.levels[0];
 
-                                    const button = (
-                                        <button
-                                            type="button"
-                                            disabled={gated || state.readOnly}
-                                            onClick={() => {
-                                                if (!gated && unlocked.length <= 1) {
-                                                    handleClick(type, maxLevel);
-                                                }
-                                                // When there's more than one unlocked level, the LevelPickerPopover
-                                                // trigger below owns the click and opens the level chooser instead.
-                                            }}
-                                            className={`flex w-full flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                                                isArmed ? 'border-primary bg-accent/60' : 'border-border/60 hover:border-primary/50'
-                                            }`}
-                                        >
-                                            <img src={gameAssetUrl(thumbLevel.file_path)} alt="" loading="lazy" className="h-10 w-full object-contain" />
-                                            <span className="w-full truncate text-[10px] font-medium">{type.name}</span>
-                                            {unlocked.length > 0 && (
-                                                <span className="text-muted-foreground text-[9px]">
-                                                    s/d Lv{maxLevel}
-                                                    {maxCount !== null && ` · ${placedCount}/${maxCount}`}
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
+                                const button = (
+                                    <button
+                                        type="button"
+                                        disabled={atLimit || state.readOnly}
+                                        onClick={() => {
+                                            if (!atLimit && unlocked.length <= 1) {
+                                                handleClick(type, maxLevel);
+                                            }
+                                            // When there's more than one unlocked level, the LevelPickerPopover
+                                            // trigger below owns the click and opens the level chooser instead.
+                                        }}
+                                        className={`flex w-full flex-col items-center gap-1 rounded-lg border p-1.5 text-center transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                                            isArmed ? 'border-primary bg-accent/60' : 'border-border/60 hover:border-primary/50'
+                                        }`}
+                                    >
+                                        <img src={gameAssetUrl(thumbLevel.file_path)} alt="" loading="lazy" className="h-10 w-full object-contain" />
+                                        <span className="w-full truncate text-[10px] font-medium">{type.name}</span>
+                                        <span className="text-muted-foreground text-[9px]">
+                                            s/d Lv{maxLevel}
+                                            {maxCount !== null && ` · ${placedCount}/${maxCount}`}
+                                        </span>
+                                    </button>
+                                );
 
-                                    if (gated) {
-                                        return (
-                                            <Tooltip key={type.id}>
-                                                <TooltipTrigger asChild>{button}</TooltipTrigger>
-                                                <TooltipContent>
-                                                    {atLimit
-                                                        ? `Sudah mencapai batas ${maxCount} bangunan di TH${state.thLevel}`
-                                                        : `Belum terbuka di Town Hall level ${state.thLevel}`}
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        );
-                                    }
-
+                                // Already unlocked, but the per-Town-Hall count is used up.
+                                if (atLimit) {
                                     return (
-                                        <LevelPickerPopover key={type.id} type={type} maxLevel={maxLevel} onPick={(level) => arm(type, level)}>
-                                            {button}
-                                        </LevelPickerPopover>
+                                        <Tooltip key={type.id}>
+                                            <TooltipTrigger asChild>{button}</TooltipTrigger>
+                                            <TooltipContent>Sudah mencapai batas {maxCount} bangunan di TH{state.thLevel}</TooltipContent>
+                                        </Tooltip>
                                     );
-                                })}
-                            </div>
-                        ))}
+                                }
+
+                                return (
+                                    <LevelPickerPopover key={type.id} type={type} maxLevel={maxLevel} onPick={(level) => arm(type, level)}>
+                                        {button}
+                                    </LevelPickerPopover>
+                                );
+                            })}
+                        </div>
                     </div>
                 ))}
             </div>

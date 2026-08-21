@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { gameAssetUrl } from '@/lib/game-assets';
 import { canPlace, isoToScreen, tileDiamondCorners, tileKey, worldToIso  } from '@/lib/iso-grid';
 import type {GridCalibration} from '@/lib/iso-grid';
+import { uid } from '@/lib/uid';
 import { levelFootprint   } from '@/types/game';
 import type {BuildingType, Scenery} from '@/types/game';
 import type { Placement } from './editor-state';
@@ -267,7 +268,7 @@ return;
                 pointer.current.pendingPlacements = [...state.placements];
 
                 if (!hit && canPlace(occupied, cell.gx, cell.gy, 1, 1, grid.n)) {
-                    const placement: Placement = { uid: crypto.randomUUID(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy };
+                    const placement: Placement = { uid: uid(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy };
                     pointer.current.pendingPlacements.push(placement);
                     pointer.current.paintedThisDrag.add(tileKey(cell.gx, cell.gy));
                 }
@@ -317,7 +318,7 @@ d.moved = true;
                         d.pendingPlacements = d.pendingPlacements.filter((pl) => pl.uid !== hit.uid);
                     }
                 } else if (!occupied.get(k) && canPlace(occupied, cell.gx, cell.gy, 1, 1, grid.n) && state.armed) {
-                    d.pendingPlacements.push({ uid: crypto.randomUUID(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy });
+                    d.pendingPlacements.push({ uid: uid(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy });
                 }
             }
 
@@ -421,7 +422,7 @@ return;
             const { width, height } = levelFootprint(found.type, found.level);
 
             if (canPlace(occupied, cell.gx, cell.gy, width, height, grid.n)) {
-                const placement: Placement = { uid: crypto.randomUUID(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy };
+                const placement: Placement = { uid: uid(), buildingTypeId: state.armed.buildingTypeId, level: state.armed.level, gx: cell.gx, gy: cell.gy };
                 dispatch({ type: 'COMMIT_PLACEMENTS', placements: [...state.placements, placement] });
                 dispatch({ type: 'SET_STATUS', status: `${found.type.name} ditambahkan.` });
             } else {

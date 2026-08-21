@@ -9,6 +9,7 @@ import { ScenerySelector } from '@/components/editor/ScenerySelector';
 import { SelectedBuildingPanel } from '@/components/editor/SelectedBuildingPanel';
 import { TownHallLevelSelector } from '@/components/editor/TownHallLevelSelector';
 import { apiFetch } from '@/lib/api';
+import { uid } from '@/lib/uid';
 import layoutRoutes from '@/routes/layouts';
 import type { BuildingType, BuildingUnlockRule, Scenery, ServerLayout } from '@/types/game';
 
@@ -34,7 +35,7 @@ function EditorWorkspace({ sceneries, buildingTypes, unlockRules }: Omit<Props, 
                 thLevel: layout.th_level,
                 sceneryId: layout.scenery_id,
                 placements: layout.data.map((p) => ({
-                    uid: crypto.randomUUID(),
+                    uid: uid(),
                     buildingTypeId: p.building_type_id,
                     level: p.level,
                     gx: p.gx,
@@ -170,7 +171,7 @@ export default function Editor({ sceneries, buildingTypes, unlockRules, sharedLa
               thLevel: sharedLayout.th_level,
               sceneryId: sharedLayout.scenery_id,
               placements: sharedLayout.data.map((p) => ({
-                  uid: crypto.randomUUID(),
+                  uid: uid(),
                   buildingTypeId: p.building_type_id,
                   level: p.level,
                   gx: p.gx,
