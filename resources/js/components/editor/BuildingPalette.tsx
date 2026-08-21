@@ -98,7 +98,7 @@ handleClick(type, maxLevel);
                                                 isArmed ? 'border-primary bg-accent/60' : 'border-border/60 hover:border-primary/50'
                                             }`}
                                         >
-                                            <img src={gameAssetUrl(thumbLevel.file_path)} alt="" className="h-10 w-full object-contain" />
+                                            <img src={gameAssetUrl(thumbLevel.file_path)} alt="" loading="lazy" className="h-10 w-full object-contain" />
                                             <span className="w-full truncate text-[10px] font-medium">{type.name}</span>
                                             {!gated && <span className="text-muted-foreground text-[9px]">s/d Lv{maxLevel}</span>}
                                         </button>

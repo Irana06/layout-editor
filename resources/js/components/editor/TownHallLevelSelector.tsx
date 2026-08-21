@@ -30,7 +30,7 @@ export function TownHallLevelSelector({ buildingTypes }: { buildingTypes: Buildi
                                 active ? 'border-primary bg-accent/60 ring-primary/40 ring-2' : 'border-border/60 hover:border-primary/50'
                             }`}
                         >
-                            <img src={gameAssetUrl(level.file_path)} alt={`TH${level.level}`} className="size-10 object-contain" />
+                            <img src={gameAssetUrl(level.file_path)} alt={`TH${level.level}`} loading="lazy" className="size-10 object-contain" />
                             <span className="text-[10px] font-semibold">TH{level.level}</span>
                         </button>
                     );

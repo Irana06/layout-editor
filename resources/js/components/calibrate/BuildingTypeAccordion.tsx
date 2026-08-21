@@ -90,7 +90,7 @@ bySub.set(sub, []);
                                                                     }`}
                                                                     title={`Level ${level.level}`}
                                                                 >
-                                                                    <img src={gameAssetUrl(level.file_path)} alt="" className="size-8 object-contain" />
+                                                                    <img src={gameAssetUrl(level.file_path)} alt="" loading="lazy" className="size-8 object-contain" />
                                                                 </button>
                                                             ))}
                                                         </div>

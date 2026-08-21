@@ -322,7 +322,7 @@ void uploadScenery(file);
                             onClick={() => setSelectedId(s.id)}
                             className={`border-border/60 relative overflow-hidden rounded-lg border text-left transition-colors ${selectedId === s.id ? 'border-primary ring-primary/40 ring-2' : 'hover:border-primary/50'}`}
                         >
-                            <img src={gameAssetUrl(s.file_path)} alt={s.name} className="h-16 w-full object-cover" />
+                            <img src={gameAssetUrl(s.file_path)} alt={s.name} loading="lazy" className="h-16 w-full object-cover" />
                             <div className="bg-card/90 flex items-center gap-1 px-1.5 py-1 text-[10px] font-medium">
                                 {s.calibrated ? (
                                     <CheckCircleIcon weight="fill" className="size-3 shrink-0 text-emerald-500" />

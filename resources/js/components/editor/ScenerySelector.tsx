@@ -30,7 +30,7 @@ export function ScenerySelector({ sceneries }: { sceneries: Scenery[] }) {
                             }`}
                             title={s.name}
                         >
-                            <img src={gameAssetUrl(s.file_path)} alt={s.name} className="h-12 w-full object-cover" />
+                            <img src={gameAssetUrl(s.file_path)} alt={s.name} loading="lazy" className="h-12 w-full object-cover" />
                         </button>
                     ))}
                 </div>

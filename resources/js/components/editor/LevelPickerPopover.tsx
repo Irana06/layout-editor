@@ -30,7 +30,7 @@ export function LevelPickerPopover({ type, maxLevel, children, onPick }: Props) 
                             onClick={() => onPick(level)}
                             className="border-border/60 hover:border-primary flex flex-col items-center gap-1 rounded-lg border p-1.5"
                         >
-                            <img src={gameAssetUrl(level.file_path)} alt="" className="size-8 object-contain" />
+                            <img src={gameAssetUrl(level.file_path)} alt="" loading="lazy" className="size-8 object-contain" />
                             <span className="text-[10px]">Lv{level.level}</span>
                         </button>
                     ))}
