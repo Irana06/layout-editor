@@ -1,4 +1,10 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
+import {
+    BuildingsIcon,
+    FolderOpenIcon,
+    ImageIcon,
+    SlidersHorizontalIcon,
+} from '@phosphor-icons/react';
 import { useCallback, useEffect, useState } from 'react';
 import { BuildingPalette } from '@/components/editor/BuildingPalette';
 import { EditorProvider, useEditor } from '@/components/editor/EditorProvider';
@@ -10,8 +16,14 @@ import { SelectedBuildingPanel } from '@/components/editor/SelectedBuildingPanel
 import { TownHallLevelSelector } from '@/components/editor/TownHallLevelSelector';
 import { apiFetch } from '@/lib/api';
 import { uid } from '@/lib/uid';
+import { calibrate, unlockRules as unlockRulesRoute } from '@/routes';
 import layoutRoutes from '@/routes/layouts';
-import type { BuildingType, BuildingUnlockRule, Scenery, ServerLayout } from '@/types/game';
+import type {
+    BuildingType,
+    BuildingUnlockRule,
+    Scenery,
+    ServerLayout,
+} from '@/types/game';
 
 type Props = {
     sceneries: Scenery[];
@@ -21,7 +33,11 @@ type Props = {
     readOnly: boolean;
 };
 
-function EditorWorkspace({ sceneries, buildingTypes, unlockRules }: Omit<Props, 'readOnly' | 'sharedLayout'>) {
+function EditorWorkspace({
+    sceneries,
+    buildingTypes,
+    unlockRules,
+}: Omit<Props, 'readOnly' | 'sharedLayout'>) {
     const { state, dispatch } = useEditor();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -44,7 +60,10 @@ function EditorWorkspace({ sceneries, buildingTypes, unlockRules }: Omit<Props, 
                 shareEnabled: layout.share_enabled,
                 shareSlug: layout.share_slug,
             });
-            dispatch({ type: 'SET_STATUS', status: `Layout "${layout.title}" dimuat.` });
+            dispatch({
+                type: 'SET_STATUS',
+                status: `Layout "${layout.title}" dimuat.`,
+            });
             setDrawerOpen(false);
         },
         [dispatch],
@@ -52,7 +71,10 @@ function EditorWorkspace({ sceneries, buildingTypes, unlockRules }: Omit<Props, 
 
     const save = useCallback(async (): Promise<ServerLayout | null> => {
         if (!state.sceneryId) {
-            dispatch({ type: 'SET_STATUS', status: 'Pilih scenery dulu sebelum menyimpan.' });
+            dispatch({
+                type: 'SET_STATUS',
+                status: 'Pilih scenery dulu sebelum menyimpan.',
+            });
 
             return null;
         }
@@ -64,47 +86,81 @@ function EditorWorkspace({ sceneries, buildingTypes, unlockRules }: Omit<Props, 
                 title: state.layoutTitle,
                 th_level: state.thLevel,
                 scenery_id: state.sceneryId,
-                data: state.placements.map((p) => ({ building_type_id: p.buildingTypeId, level: p.level, gx: p.gx, gy: p.gy })),
+                data: state.placements.map((p) => ({
+                    building_type_id: p.buildingTypeId,
+                    level: p.level,
+                    gx: p.gx,
+                    gy: p.gy,
+                })),
             };
-            const route = state.layoutId ? layoutRoutes.update(state.layoutId) : layoutRoutes.store();
-            const { layout } = await apiFetch<{ layout: ServerLayout }>(route, payload);
+            const route = state.layoutId
+                ? layoutRoutes.update(state.layoutId)
+                : layoutRoutes.store();
+            const { layout } = await apiFetch<{ layout: ServerLayout }>(
+                route,
+                payload,
+            );
             dispatch({ type: 'SET_LAYOUT_ID', layoutId: layout.id });
             dispatch({ type: 'SET_STATUS', status: 'Layout tersimpan.' });
 
             return layout;
         } catch (error) {
-            dispatch({ type: 'SET_STATUS', status: error instanceof Error ? error.message : 'Gagal menyimpan layout.' });
+            dispatch({
+                type: 'SET_STATUS',
+                status:
+                    error instanceof Error
+                        ? error.message
+                        : 'Gagal menyimpan layout.',
+            });
 
             return null;
         } finally {
             setSaving(false);
         }
-    }, [state.sceneryId, state.layoutTitle, state.thLevel, state.placements, state.layoutId, dispatch]);
+    }, [
+        state.sceneryId,
+        state.layoutTitle,
+        state.thLevel,
+        state.placements,
+        state.layoutId,
+        dispatch,
+    ]);
 
     const share = useCallback(async () => {
         const layout = state.layoutId ? { id: state.layoutId } : await save();
 
         if (!layout) {
-return;
-}
+            return;
+        }
 
         try {
-            const { share_url: shareUrl } = await apiFetch<{ share_url: string | null }>(layoutRoutes.share(layout.id), { share_enabled: true });
+            const { share_url: shareUrl } = await apiFetch<{
+                share_url: string | null;
+            }>(layoutRoutes.share(layout.id), { share_enabled: true });
 
             if (shareUrl) {
                 await navigator.clipboard.writeText(shareUrl);
-                dispatch({ type: 'SET_STATUS', status: 'Link publik disalin ke clipboard.' });
+                dispatch({
+                    type: 'SET_STATUS',
+                    status: 'Link publik disalin ke clipboard.',
+                });
             }
         } catch (error) {
-            dispatch({ type: 'SET_STATUS', status: error instanceof Error ? error.message : 'Gagal membuat link share.' });
+            dispatch({
+                type: 'SET_STATUS',
+                status:
+                    error instanceof Error
+                        ? error.message
+                        : 'Gagal membuat link share.',
+            });
         }
     }, [state.layoutId, save, dispatch]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || state.readOnly) {
-return;
-}
+                return;
+            }
 
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                 e.preventDefault();
@@ -116,8 +172,16 @@ return;
                 dispatch({ type: 'REDO' });
             }
 
-            if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedIds.length) {
-                dispatch({ type: 'COMMIT_PLACEMENTS', placements: state.placements.filter((p) => !state.selectedIds.includes(p.uid)) });
+            if (
+                (e.key === 'Delete' || e.key === 'Backspace') &&
+                state.selectedIds.length
+            ) {
+                dispatch({
+                    type: 'COMMIT_PLACEMENTS',
+                    placements: state.placements.filter(
+                        (p) => !state.selectedIds.includes(p.uid),
+                    ),
+                });
                 dispatch({ type: 'SELECT', ids: [] });
             }
 
@@ -132,35 +196,126 @@ return;
     }, [state.placements, state.selectedIds, state.readOnly, dispatch]);
 
     return (
-        <div className="bg-background text-foreground min-h-screen">
-            <EditorToolbar onSave={() => void save()} onOpenLayouts={() => setDrawerOpen(true)} onShare={() => void share()} saving={saving} />
+        <div className="coc-studio">
+            <EditorToolbar
+                onSave={() => void save()}
+                onOpenLayouts={() => setDrawerOpen(true)}
+                onShare={() => void share()}
+                saving={saving}
+            />
 
-            <div className="mx-auto grid max-w-[1600px] gap-4 px-5 py-4 lg:grid-cols-[260px_minmax(0,1fr)_260px]">
-                <aside className="space-y-5 lg:order-1">
-                    <ScenerySelector sceneries={sceneries} />
-                    <TownHallLevelSelector buildingTypes={buildingTypes} />
-                    <BuildingPalette buildingTypes={buildingTypes} unlockRules={unlockRules} />
+            <div className="coc-studio-body">
+                <nav className="coc-tool-rail" aria-label="Navigasi editor">
+                    <button
+                        type="button"
+                        className="coc-rail-button is-active"
+                        title="Bangunan"
+                    >
+                        <BuildingsIcon weight="duotone" />
+                        <span>Build</span>
+                    </button>
+                    <Link
+                        href={calibrate()}
+                        className="coc-rail-button"
+                        title="Kalibrasi scenery"
+                    >
+                        <ImageIcon weight="duotone" />
+                        <span>Scene</span>
+                    </Link>
+                    <Link
+                        href={unlockRulesRoute()}
+                        className="coc-rail-button"
+                        title="Aturan Town Hall"
+                    >
+                        <SlidersHorizontalIcon weight="duotone" />
+                        <span>Rules</span>
+                    </Link>
+                    <button
+                        type="button"
+                        className="coc-rail-button"
+                        title="Layout tersimpan"
+                        onClick={() => setDrawerOpen(true)}
+                    >
+                        <FolderOpenIcon weight="duotone" />
+                        <span>Saved</span>
+                    </button>
+                </nav>
+
+                <aside className="coc-editor-panel coc-editor-panel-left">
+                    <div className="coc-panel-heading">
+                        <p className="coc-eyebrow">Building library</p>
+                        <h2>Susun pertahanan</h2>
+                        <p>
+                            Pilih scenery, level Town Hall, lalu tempatkan
+                            bangunan pada grid.
+                        </p>
+                    </div>
+                    <div className="coc-panel-scroll">
+                        <ScenerySelector sceneries={sceneries} />
+                        <div className="coc-panel-divider" />
+                        <TownHallLevelSelector buildingTypes={buildingTypes} />
+                        <div className="coc-panel-divider" />
+                        <BuildingPalette
+                            buildingTypes={buildingTypes}
+                            unlockRules={unlockRules}
+                        />
+                    </div>
                 </aside>
 
-                <div className="space-y-2 lg:order-2">
-                    <div className="text-muted-foreground flex items-center justify-between text-xs">
-                        <span>{state.status}</span>
-                        <span>{state.placements.length} bangunan</span>
+                <main className="coc-canvas-viewport">
+                    <div className="coc-canvas-meta">
+                        <div>
+                            <span className="coc-meta-dot" />
+                            <span>{state.status}</span>
+                        </div>
+                        <span>{state.placements.length} objek ditempatkan</span>
                     </div>
-                    <IsometricCanvas buildingTypes={buildingTypes} sceneries={sceneries} />
-                </div>
+                    <div className="coc-canvas-wrap">
+                        <div className="coc-canvas-corner coc-canvas-corner-tl" />
+                        <div className="coc-canvas-corner coc-canvas-corner-br" />
+                        <IsometricCanvas
+                            buildingTypes={buildingTypes}
+                            sceneries={sceneries}
+                        />
+                    </div>
+                    <p className="coc-canvas-hint">
+                        Drag untuk menggeser · scroll untuk zoom · Shift + drag
+                        untuk memilih area
+                    </p>
+                </main>
 
-                <aside className="lg:order-3">
+                <aside className="coc-editor-panel coc-editor-panel-right">
+                    <div className="coc-panel-heading">
+                        <p className="coc-eyebrow">Inspector</p>
+                        <h2>Properti layout</h2>
+                        <p>Detail pilihan dan kontrol tampilan kanvas.</p>
+                    </div>
                     <SelectedBuildingPanel buildingTypes={buildingTypes} />
                 </aside>
             </div>
 
-            <LayoutManagerDrawer open={drawerOpen} onOpenChange={setDrawerOpen} onOpenLayout={loadLayout} />
+            <LayoutManagerDrawer
+                open={drawerOpen}
+                onOpenChange={setDrawerOpen}
+                onOpenLayout={loadLayout}
+            />
         </div>
     );
 }
 
-export default function Editor({ sceneries, buildingTypes, unlockRules, sharedLayout, readOnly }: Props) {
+export default function Editor({
+    sceneries,
+    buildingTypes,
+    unlockRules,
+    sharedLayout,
+    readOnly,
+}: Props) {
+    useEffect(() => {
+        document.documentElement.classList.add('editor-dark');
+
+        return () => document.documentElement.classList.remove('editor-dark');
+    }, []);
+
     // Computed once up front (not in a post-mount effect) so the reducer's initial state
     // already reflects the shared/loaded layout or a sensible default scenery.
     const initial = sharedLayout
@@ -189,9 +344,19 @@ export default function Editor({ sceneries, buildingTypes, unlockRules, sharedLa
 
     return (
         <>
-            <Head title={readOnly ? `${sharedLayout?.title ?? 'Layout'} — Base Layout Editor` : 'Editor'} />
+            <Head
+                title={
+                    readOnly
+                        ? `${sharedLayout?.title ?? 'Layout'} — Base Layout Editor`
+                        : 'Editor'
+                }
+            />
             <EditorProvider initial={initial}>
-                <EditorWorkspace sceneries={sceneries} buildingTypes={buildingTypes} unlockRules={unlockRules} />
+                <EditorWorkspace
+                    sceneries={sceneries}
+                    buildingTypes={buildingTypes}
+                    unlockRules={unlockRules}
+                />
             </EditorProvider>
         </>
     );

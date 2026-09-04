@@ -7,15 +7,12 @@ import {
     FolderOpenIcon,
     FloppyDiskIcon,
     MinusIcon,
-    MoonIcon,
     PlusIcon,
     ShareNetworkIcon,
-    SunIcon,
 } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { useAppearance } from '@/hooks/use-appearance';
 import { home } from '@/routes';
 import { useEditor } from './EditorProvider';
 
@@ -26,71 +23,86 @@ type Props = {
     saving: boolean;
 };
 
-function ThemeToggle() {
-    const { resolvedAppearance, updateAppearance } = useAppearance();
-    const isDark = resolvedAppearance === 'dark';
-
-    return (
-        <button
-            type="button"
-            onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
-            className="border-border/60 bg-card/60 flex size-9 items-center justify-center rounded-full border"
-            aria-label="Ganti tema terang/gelap"
-        >
-            {isDark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
-        </button>
-    );
-}
-
-export function EditorToolbar({ onSave, onOpenLayouts, onShare, saving }: Props) {
+export function EditorToolbar({
+    onSave,
+    onOpenLayouts,
+    onShare,
+    saving,
+}: Props) {
     const { state, dispatch, zoomDisplay, zoomActionsRef } = useEditor();
 
     return (
-        <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md">
-            <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-5 py-3">
-                <Link href={home()} className="flex shrink-0 items-center gap-2">
-                    <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
-                        <DiamondIcon weight="fill" className="size-4" />
+        <header className="coc-topbar">
+            <div className="coc-topbar-inner">
+                <Link href={home()} className="coc-studio-brand">
+                    <span className="coc-brand-mark">
+                        <DiamondIcon weight="duotone" />
+                    </span>
+                    <span className="coc-brand-copy">
+                        <strong>Base Atelier</strong>
+                        <small>Clash Layout Studio</small>
                     </span>
                 </Link>
 
                 <Input
                     value={state.layoutTitle}
-                    onChange={(e) => dispatch({ type: 'SET_TITLE', title: e.target.value })}
+                    onChange={(e) =>
+                        dispatch({ type: 'SET_TITLE', title: e.target.value })
+                    }
                     disabled={state.readOnly}
-                    className="w-40 shrink-0"
+                    className="coc-title-input"
                     aria-label="Judul layout"
                 />
 
                 {!state.readOnly && (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                        <Button size="sm" variant="outline" onClick={onOpenLayouts} className="rounded-full">
+                    <div className="coc-top-actions">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={onOpenLayouts}
+                            className="coc-btn-secondary"
+                        >
                             <FolderOpenIcon className="size-3.5" />
                             Buka
                         </Button>
-                        <Button size="sm" onClick={onSave} disabled={saving} className="rounded-full">
+                        <Button
+                            size="sm"
+                            onClick={onSave}
+                            disabled={saving}
+                            className="coc-btn-primary"
+                        >
                             <FloppyDiskIcon className="size-3.5" />
                             {saving ? 'Menyimpan...' : 'Simpan'}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={onShare} className="rounded-full">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={onShare}
+                            className="coc-btn-secondary"
+                        >
                             <ShareNetworkIcon className="size-3.5" />
                             Bagikan
                         </Button>
+                        <span className="coc-toolbar-divider" />
                         <Button
                             size="sm"
                             variant="ghost"
                             disabled={state.historyIndex <= 0}
                             onClick={() => dispatch({ type: 'UNDO' })}
-                            className="rounded-full"
+                            className="coc-icon-button"
+                            title="Undo"
                         >
                             <ArrowUUpLeftIcon className="size-3.5" />
                         </Button>
                         <Button
                             size="sm"
                             variant="ghost"
-                            disabled={state.historyIndex >= state.history.length - 1}
+                            disabled={
+                                state.historyIndex >= state.history.length - 1
+                            }
                             onClick={() => dispatch({ type: 'REDO' })}
-                            className="rounded-full"
+                            className="coc-icon-button"
+                            title="Redo"
                         >
                             <ArrowUUpRightIcon className="size-3.5" />
                         </Button>
@@ -98,7 +110,7 @@ export function EditorToolbar({ onSave, onOpenLayouts, onShare, saving }: Props)
                             size="sm"
                             variant="ghost"
                             onClick={() => dispatch({ type: 'RESET' })}
-                            className="rounded-full"
+                            className="coc-icon-button"
                             title="Reset layout"
                         >
                             <ArrowCounterClockwiseIcon className="size-3.5" />
@@ -106,9 +118,17 @@ export function EditorToolbar({ onSave, onOpenLayouts, onShare, saving }: Props)
                     </div>
                 )}
 
-                <div className="ml-auto flex shrink-0 items-center gap-3">
-                    <div className="hidden items-center gap-2 sm:flex">
-                        <Button size="icon" variant="ghost" onClick={() => zoomActionsRef.current?.setZoomPercent(zoomDisplay - 25)}>
+                <div className="coc-topbar-right">
+                    <div className="coc-zoom-control">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                                zoomActionsRef.current?.setZoomPercent(
+                                    zoomDisplay - 25,
+                                )
+                            }
+                        >
                             <MinusIcon className="size-3.5" />
                         </Button>
                         <Slider
@@ -116,15 +136,24 @@ export function EditorToolbar({ onSave, onOpenLayouts, onShare, saving }: Props)
                             max={1000}
                             step={10}
                             value={[zoomDisplay]}
-                            onValueChange={([v]) => zoomActionsRef.current?.setZoomPercent(v)}
-                            className="w-28"
+                            onValueChange={([v]) =>
+                                zoomActionsRef.current?.setZoomPercent(v)
+                            }
+                            className="coc-zoom-slider"
                         />
-                        <Button size="icon" variant="ghost" onClick={() => zoomActionsRef.current?.setZoomPercent(zoomDisplay + 25)}>
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                                zoomActionsRef.current?.setZoomPercent(
+                                    zoomDisplay + 25,
+                                )
+                            }
+                        >
                             <PlusIcon className="size-3.5" />
                         </Button>
-                        <span className="text-muted-foreground w-10 text-xs tabular-nums">{zoomDisplay}%</span>
+                        <span>{zoomDisplay}%</span>
                     </div>
-                    <ThemeToggle />
                 </div>
             </div>
         </header>
