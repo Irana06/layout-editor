@@ -6,23 +6,48 @@ import 'package:path_provider/path_provider.dart';
 
 /// Local versioned document; placement keys match Laravel's layout payload.
 class LocalDraft {
-  LocalDraft({required this.id, required this.title, required this.layout,
-    required this.updatedAt});
+  LocalDraft({
+    required this.id,
+    required this.title,
+    required this.layout,
+    required this.updatedAt,
+  });
 
   final String id;
   final String title;
   final Map<String, dynamic> layout;
   final DateTime updatedAt;
 
-  factory LocalDraft.fromJson(Map<String, dynamic> json) => LocalDraft(
-    id: json['id'] as String,
-    title: json['title'] as String,
-    layout: Map<String, dynamic>.from(json['layout'] as Map),
-    updatedAt: DateTime.parse(json['updated_at'] as String),
-  );
+  factory LocalDraft.fromJson(Map<String, dynamic> json) {
+    final layout = Map<String, dynamic>.from(json['layout'] as Map);
+    if (layout['scenery_id'] is! int ||
+        layout['th_level'] is! int ||
+        layout['data'] is! List) {
+      throw const FormatException('Format layout tidak valid');
+    }
+    for (final row in layout['data'] as List) {
+      if (row is! Map ||
+          [
+            'building_type_id',
+            'level',
+            'gx',
+            'gy',
+          ].any((key) => row[key] is! int)) {
+        throw const FormatException('Format bangunan tidak valid');
+      }
+    }
+    return LocalDraft(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      layout: layout,
+      updatedAt: DateTime.parse(json['updated_at'] as String),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-    'id': id, 'title': title, 'layout': layout,
+    'id': id,
+    'title': title,
+    'layout': layout,
     'updated_at': updatedAt.toIso8601String(),
   };
 }
@@ -50,12 +75,22 @@ class DraftStore extends ChangeNotifier {
       await directory.create(recursive: true);
       _file = File('${directory.path}/shiclash-drafts-v1.json');
       if (await _file.exists()) {
-        final json = jsonDecode(await _file.readAsString()) as Map<String, dynamic>;
-        if (json['version'] != 1) throw const FormatException('Versi draft tidak didukung');
-        final restored = json['active'] == null ? null :
-          LocalDraft.fromJson(Map<String, dynamic>.from(json['active'] as Map));
-        final saved = (json['saved'] as List).map((item) =>
-          LocalDraft.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+        final json =
+            jsonDecode(await _file.readAsString()) as Map<String, dynamic>;
+        if (json['version'] != 1) {
+          throw const FormatException('Versi draft tidak didukung');
+        }
+        final restored = json['active'] == null
+            ? null
+            : LocalDraft.fromJson(
+                Map<String, dynamic>.from(json['active'] as Map),
+              );
+        final saved = (json['saved'] as List)
+            .map(
+              (item) =>
+                  LocalDraft.fromJson(Map<String, dynamic>.from(item as Map)),
+            )
+            .toList();
         active = restored;
         _saved = saved;
       }
@@ -69,16 +104,27 @@ class DraftStore extends ChangeNotifier {
 
   Future<void> autosave(Map<String, dynamic> layout) async {
     await ready;
-    active = LocalDraft(id: 'autosave', title: 'Draft terakhir',
-      layout: layout, updatedAt: DateTime.now());
+    active = LocalDraft(
+      id: 'autosave',
+      title: 'Draft terakhir',
+      layout: layout,
+      updatedAt: DateTime.now(),
+    );
     await _persist();
   }
 
   Future<void> saveCopy(String title) async {
     await ready;
     if (active == null) throw StateError('Belum ada draft');
-    _saved = [LocalDraft(id: DateTime.now().microsecondsSinceEpoch.toString(),
-      title: title.trim(), layout: active!.layout, updatedAt: DateTime.now()), ..._saved];
+    _saved = [
+      LocalDraft(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        title: title.trim(),
+        layout: active!.layout,
+        updatedAt: DateTime.now(),
+      ),
+      ..._saved,
+    ];
     await _persist();
   }
 
@@ -102,8 +148,11 @@ class DraftStore extends ChangeNotifier {
   }
 
   Future<void> _persist() {
-    final content = jsonEncode({'version': 1, 'active': active?.toJson(),
-      'saved': _saved.map((item) => item.toJson()).toList()});
+    final content = jsonEncode({
+      'version': 1,
+      'active': active?.toJson(),
+      'saved': _saved.map((item) => item.toJson()).toList(),
+    });
     _pending++;
     _notify();
     final operation = _queue.then((_) async {
@@ -111,19 +160,29 @@ class DraftStore extends ChangeNotifier {
       await temporary.writeAsString(content, flush: true);
       await temporary.rename(_file.path);
     });
-    _queue = operation.then<void>((_) {
-      error = null;
-    }, onError: (Object failure) {
-      error = 'Penyimpanan gagal. Perubahan masih ada di memori; coba simpan lagi.';
-    }).whenComplete(() {
-      _pending--;
-      _notify();
-    });
+    _queue = operation
+        .then<void>(
+          (_) {
+            error = null;
+          },
+          onError: (Object failure) {
+            error = 'Penyimpanan gagal. Perubahan masih ada di memori; coba simpan lagi.';
+          },
+        )
+        .whenComplete(() {
+          _pending--;
+          _notify();
+        });
     return operation;
   }
 
-  void _notify() { if (!_closed) notifyListeners(); }
+  void _notify() {
+    if (!_closed) notifyListeners();
+  }
 
   @override
-  void dispose() { _closed = true; super.dispose(); }
+  void dispose() {
+    _closed = true;
+    super.dispose();
+  }
 }

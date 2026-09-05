@@ -1,14 +1,22 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
 import 'package:shiclash/features/editor/presentation/isometric_board.dart';
+import 'package:shiclash/features/layouts/data/draft_store.dart';
 
 class EditorScreen extends StatefulWidget {
-  const EditorScreen({required this.repository, super.key});
+  const EditorScreen({
+    required this.repository,
+    required this.drafts,
+    super.key,
+  });
 
   final CatalogRepository repository;
+  final DraftStore drafts;
 
   @override
   State<EditorScreen> createState() => _EditorScreenState();
@@ -20,10 +28,15 @@ class _EditorScreenState extends State<EditorScreen> {
   @override
   void initState() {
     super.initState();
-    _catalog = widget.repository.load();
+    _catalog = _load();
   }
 
-  void _retry() => setState(() => _catalog = widget.repository.load());
+  Future<CatalogBootstrap> _load() async {
+    await widget.drafts.ready;
+    return widget.repository.load();
+  }
+
+  void _retry() => setState(() => _catalog = _load());
 
   @override
   Widget build(BuildContext context) {
@@ -33,10 +46,19 @@ class _EditorScreenState extends State<EditorScreen> {
         future: _catalog,
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.sceneries.isNotEmpty) {
-            return _EditorWorkspace(catalog: snapshot.data!);
+            return _EditorWorkspace(
+              catalog: snapshot.data!,
+              drafts: widget.drafts,
+            );
           }
-          if (snapshot.hasError) {
-            return _LoadFailure(error: snapshot.error, onRetry: _retry);
+          if (snapshot.hasError || snapshot.hasData) {
+            return _LoadFailure(
+              error:
+                  widget.drafts.error ??
+                  snapshot.error ??
+                  'Belum ada scenery terkalibrasi.',
+              onRetry: _retry,
+            );
           }
           return const Center(
             child: CircularProgressIndicator(color: AppColors.brass),
@@ -48,9 +70,10 @@ class _EditorScreenState extends State<EditorScreen> {
 }
 
 class _EditorWorkspace extends StatefulWidget {
-  const _EditorWorkspace({required this.catalog});
+  const _EditorWorkspace({required this.catalog, required this.drafts});
 
   final CatalogBootstrap catalog;
+  final DraftStore drafts;
 
   @override
   State<_EditorWorkspace> createState() => _EditorWorkspaceState();
@@ -58,15 +81,113 @@ class _EditorWorkspace extends StatefulWidget {
 
 class _EditorWorkspaceState extends State<_EditorWorkspace> {
   late final EditorController controller;
+  String? _lastDocument;
+  int _openVersion = 0;
+  bool _restoreBlocked = false;
 
   @override
   void initState() {
     super.initState();
     controller = EditorController(widget.catalog);
+    final initial = widget.drafts.requested ?? widget.drafts.active;
+    if (initial != null) _restore(initial, initial: true);
+    _openVersion = widget.drafts.openVersion;
+    _lastDocument = jsonEncode(controller.toLayout());
+    if (!_restoreBlocked && widget.drafts.requested != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _write(controller.toLayout());
+      });
+    }
+    controller.addListener(_changed);
+    widget.drafts.addListener(_draftChanged);
+  }
+
+  void _restore(LocalDraft draft, {bool initial = false}) {
+    try {
+      controller.restoreLayout(draft.layout);
+      _restoreBlocked = false;
+    } catch (_) {
+      if (initial) _restoreBlocked = true;
+      controller.status = 'Draft tidak cocok dengan katalog. Data tersimpan tetap dipertahankan.';
+    }
+  }
+
+  void _draftChanged() {
+    if (_openVersion == widget.drafts.openVersion) return;
+    _openVersion = widget.drafts.openVersion;
+    final draft = widget.drafts.requested;
+    if (draft != null) {
+      // Suppress listener until restore has completed successfully.
+      controller.removeListener(_changed);
+      _restore(draft);
+      controller.addListener(_changed);
+      if (!_restoreBlocked) _changed();
+      setState(() {});
+    }
+  }
+
+  void _changed() {
+    if (_restoreBlocked) return;
+    final layout = controller.toLayout();
+    final document = jsonEncode(layout);
+    if (document == _lastDocument) return;
+    _lastDocument = document;
+    _write(layout);
+  }
+
+  Future<void> _write(Map<String, dynamic> layout) async {
+    try {
+      await widget.drafts.autosave(layout);
+    } catch (_) {
+      /* Visible in save bar. */
+    }
+  }
+
+  Future<void> _saveCopy() async {
+    var name = 'Layout TH ${controller.townHallLevel}';
+    final title = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Simpan salinan'),
+        content: TextFormField(
+          initialValue: name,
+          onChanged: (value) => name = value,
+          autofocus: true,
+          maxLength: 100,
+          decoration: const InputDecoration(labelText: 'Nama layout'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (name.trim().isNotEmpty) Navigator.pop(context, name.trim());
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || title == null) return;
+    try {
+      await widget.drafts.autosave(controller.toLayout());
+      await widget.drafts.saveCopy(title);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Salinan tersimpan di Layouts.')),
+        );
+      }
+    } catch (_) {
+      /* Visible in save bar. */
+    }
   }
 
   @override
   void dispose() {
+    widget.drafts.removeListener(_draftChanged);
+    controller.removeListener(_changed);
     controller.dispose();
     super.dispose();
   }
@@ -76,8 +197,53 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
+        if (_restoreBlocked) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(controller.status),
+            ),
+          );
+        }
         return Column(
           children: [
+            ListenableBuilder(
+              listenable: widget.drafts,
+              builder: (context, _) => Row(
+                children: [
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      _restoreBlocked
+                          ? 'Draft tidak dapat dipulihkan'
+                          : widget.drafts.error ??
+                                (widget.drafts.saving
+                                    ? 'Menyimpan…'
+                                    : widget.drafts.active == null
+                                    ? 'Draft baru · lokal'
+                                    : 'Tersimpan di perangkat'),
+                      maxLines: 2,
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  if (widget.drafts.error != null)
+                    IconButton(
+                      tooltip: 'Coba simpan lagi',
+                      onPressed: () async {
+                        try {
+                          await widget.drafts.retrySave();
+                        } catch (_) {}
+                      },
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  TextButton.icon(
+                    onPressed: _restoreBlocked ? null : _saveCopy,
+                    icon: const Icon(Icons.save_outlined, size: 16),
+                    label: const Text('Simpan salinan'),
+                  ),
+                ],
+              ),
+            ),
             _Header(controller: controller),
             Expanded(
               child: Stack(
@@ -111,6 +277,35 @@ class _Header extends StatelessWidget {
   const _Header({required this.controller});
 
   final EditorController controller;
+
+  Future<void> _changeConfiguration(
+    BuildContext context,
+    VoidCallback change,
+  ) async {
+    if (controller.placements.isNotEmpty) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Ganti konfigurasi?'),
+          content: const Text(
+            'Canvas dan riwayat undo akan dikosongkan. Simpan salinan dahulu jika layout ini ingin dipakai lagi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ganti'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+    }
+    change();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +373,12 @@ class _Header extends StatelessWidget {
                     items: controller.catalog.sceneries,
                     label: (item) => item.name,
                     onChanged: (value) {
-                      if (value != null) controller.setScenery(value);
+                      if (value != null && value.id != controller.scenery.id) {
+                        _changeConfiguration(
+                          context,
+                          () => controller.setScenery(value),
+                        );
+                      }
                     },
                   ),
                 ),
@@ -190,7 +390,12 @@ class _Header extends StatelessWidget {
                     items: thLevels,
                     label: (item) => 'TH $item',
                     onChanged: (value) {
-                      if (value != null) controller.setTownHall(value);
+                      if (value != null && value != controller.townHallLevel) {
+                        _changeConfiguration(
+                          context,
+                          () => controller.setTownHall(value),
+                        );
+                      }
                     },
                   ),
                 ),
@@ -218,27 +423,26 @@ class _CompactDropdown<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      isExpanded: true,
-      icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
-      decoration: const InputDecoration(
+    return DropdownButtonHideUnderline(
+      child: DropdownButton<T>(
+        value: value,
+        isExpanded: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
         isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 11, vertical: 9),
-      ),
-      items: items
-          .map(
-            (item) => DropdownMenuItem<T>(
-              value: item,
-              child: Text(
-                label(item),
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
+        items: items
+            .map(
+              (item) => DropdownMenuItem<T>(
+                value: item,
+                child: Text(
+                  label(item),
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
-            ),
-          )
-          .toList(),
-      onChanged: onChanged,
+            )
+            .toList(),
+        onChanged: onChanged,
+      ),
     );
   }
 }

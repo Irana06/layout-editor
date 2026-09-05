@@ -78,6 +78,37 @@ void main() {
 
   tearDown(() => controller.dispose());
 
+  test('layout round trip restores coordinates, TH and undo baseline', () {
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(4, 6);
+    final document = controller.toLayout();
+    controller.reset();
+    controller.restoreLayout(document);
+    expect(controller.toLayout(), document);
+    expect(controller.canUndo, isFalse);
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(12, 12);
+    expect(controller.placements.map((item) => item.id).toSet(), hasLength(2));
+    controller.undo();
+    expect(controller.toLayout(), document);
+  });
+
+  test('invalid draft does not mutate current canvas or history', () {
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(4, 6);
+    final original = controller.toLayout();
+    final invalid = {
+      ...original,
+      'data': [
+        {'building_type_id': 2, 'level': 10, 'gx': 1, 'gy': 1},
+        {'building_type_id': 2, 'level': 10, 'gx': 2, 'gy': 2},
+      ],
+    };
+    expect(() => controller.restoreLayout(invalid), throwsFormatException);
+    expect(controller.toLayout(), original);
+    expect(controller.canUndo, isTrue);
+  });
+
   test('places buildings and rejects overlapping footprints', () {
     controller.arm(controller.typeFor(2)!);
     controller.handleGridTap(3, 3);

@@ -1,6 +1,16 @@
 # Shiclash Mobile
 
-Flutter client untuk Base Layout Editor. Website tetap menggunakan Laravel + React/Inertia, sedangkan aplikasi Android/iOS membaca katalog dan layout melalui Laravel API.
+Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Inertia. Aplikasi Android/iOS membaca katalog dari Laravel API dan menyimpan layout secara lokal; sinkronisasi layout ke akun belum tersedia.
+
+## Draft dan koleksi lokal
+
+Perubahan canvas otomatis disimpan ke `shiclash-drafts-v1.json` di direktori dokumen aplikasi. Draft terakhir dipulihkan setelah katalog berhasil dimuat. Autosave menyimpan placement, TH, dan scenery; riwayat undo dimulai ulang saat draft dibuka.
+
+Gunakan **Simpan salinan** di Editor untuk menyimpan layout bernama. Tab **Layouts** menyediakan draft terakhir serta salinan yang dapat dibuka atau dihapus. Mengedit canvas tidak mengubah salinan yang telah disimpan. Perhatikan status penyimpanan sebelum menutup aplikasi; jika penyimpanan gagal, gunakan tombol coba lagi.
+
+Penulisan dilakukan berurutan melalui file sementara, lalu mengganti file utama. File rusak atau versi yang tidak didukung tidak ditimpa. Draft yang tidak sesuai katalog ditolak sebelum mengganti canvas. Data lokal dapat hilang jika data aplikasi dibersihkan atau aplikasi dihapus; belum ada backup akun.
+
+Editor masih memerlukan koneksi ke Laravel untuk katalog dan gambar. Penyimpanan lokal belum berarti editor sepenuhnya offline.
 
 ## Menjalankan Laravel API untuk emulator Android
 

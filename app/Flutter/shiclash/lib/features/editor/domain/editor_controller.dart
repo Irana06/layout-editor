@@ -53,10 +53,16 @@ class EditorController extends ChangeNotifier {
   Map<String, dynamic> toLayout() => {
     'scenery_id': scenery.id,
     'th_level': townHallLevel,
-    'data': placements.map((item) => {
-      'building_type_id': item.buildingTypeId, 'level': item.level,
-      'gx': item.gridX, 'gy': item.gridY,
-    }).toList(),
+    'data': placements
+        .map(
+          (item) => {
+            'building_type_id': item.buildingTypeId,
+            'level': item.level,
+            'gx': item.gridX,
+            'gy': item.gridY,
+          },
+        )
+        .toList(),
   };
 
   /// Validate in a separate controller so an invalid draft cannot clear work.
@@ -64,9 +70,11 @@ class EditorController extends ChangeNotifier {
     final scratch = EditorController(catalog);
     try {
       scratch.scenery = catalog.sceneries.firstWhere(
-        (item) => item.id == layout['scenery_id']);
+        (item) => item.id == layout['scenery_id'],
+      );
       final th = layout['th_level'] as int;
-      if (!(catalog.townHall?.levels.any((item) => item.level == th) ?? false)) {
+      if (!(catalog.townHall?.levels.any((item) => item.level == th) ??
+          false)) {
         throw const FormatException('Town Hall tidak tersedia');
       }
       scratch.townHallLevel = th;
@@ -74,7 +82,8 @@ class EditorController extends ChangeNotifier {
         final row = Map<String, dynamic>.from(raw as Map);
         final type = scratch.typeFor(row['building_type_id'] as int);
         final level = row['level'] as int;
-        if (type == null || !type.levels.any((item) => item.level == level) ||
+        if (type == null ||
+            !type.levels.any((item) => item.level == level) ||
             level > catalog.maxLevelFor(type.id, th)) {
           throw const FormatException('Bangunan atau level tidak tersedia');
         }
@@ -93,7 +102,9 @@ class EditorController extends ChangeNotifier {
       armedBuildingTypeId = null;
       armedLevel = null;
       movingSelection = false;
-      _history..clear()..add(placements);
+      _history
+        ..clear()
+        ..add(placements);
       _historyIndex = 0;
       status = 'Draft dibuka. ${placements.length} objek dipulihkan.';
       notifyListeners();
