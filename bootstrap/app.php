@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Railway terminates TLS before forwarding the request to the app.
+        // Trust its forwarded scheme/host headers so Vite and URL helpers emit
+        // HTTPS URLs instead of browser-blocked mixed-content HTTP assets.
+        $middleware->trustProxies(at: '*');
+
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
         ]);
