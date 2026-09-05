@@ -1,0 +1,69 @@
+name: Flutter Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: Laravel API URL, including /api/v1
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/Flutter/shiclash/**'
+      - '.github/workflows/flutter-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-debug-apk:
+    name: Analyze, test, and build APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/Flutter/shiclash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Build installable debug APKs
+        env:
+          INPUT_API_URL: ${{ inputs.api_base_url }}
+          REPOSITORY_API_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          API_URL="${INPUT_API_URL:-$REPOSITORY_API_URL}"
+          API_URL="${API_URL:-http://10.0.2.2:8000/api/v1}"
+          flutter build apk --debug --split-per-abi --dart-define=API_BASE_URL="$API_URL"
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiclash-android-debug-${{ github.sha }}
+          path: app/Flutter/shiclash/build/app/outputs/flutter-apk/*-debug.apk
+          if-no-files-found: error
+          retention-days: 30
