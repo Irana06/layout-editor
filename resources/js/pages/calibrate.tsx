@@ -24,42 +24,79 @@ function ThemeToggle() {
         <button
             type="button"
             onClick={() => updateAppearance(isDark ? 'light' : 'dark')}
-            className="border-border/60 bg-card/60 flex size-9 items-center justify-center rounded-full border"
+            className="flex size-9 items-center justify-center rounded-full border border-border/60 bg-card/60"
             aria-label="Ganti tema terang/gelap"
         >
-            {isDark ? <SunIcon className="size-4" /> : <MoonIcon className="size-4" />}
+            {isDark ? (
+                <SunIcon className="size-4" />
+            ) : (
+                <MoonIcon className="size-4" />
+            )}
         </button>
     );
 }
 
-export default function Calibrate({ sceneries, buildingTypes: initialBuildingTypes }: Props) {
+export default function Calibrate({
+    sceneries,
+    buildingTypes: initialBuildingTypes,
+}: Props) {
+    const [calibratedSceneries, setCalibratedSceneries] = useState(sceneries);
     const [buildingTypes, setBuildingTypes] = useState(initialBuildingTypes);
     const [selectedTypeId, setSelectedTypeId] = useState<number | null>(null);
     const [selectedLevelId, setSelectedLevelId] = useState<number | null>(null);
 
-    const selectedType = useMemo(() => buildingTypes.find((t) => t.id === selectedTypeId) ?? null, [buildingTypes, selectedTypeId]);
-    const selectedLevel = useMemo(() => selectedType?.levels.find((l) => l.id === selectedLevelId) ?? null, [selectedType, selectedLevelId]);
+    const selectedType = useMemo(
+        () => buildingTypes.find((t) => t.id === selectedTypeId) ?? null,
+        [buildingTypes, selectedTypeId],
+    );
+    const selectedLevel = useMemo(
+        () =>
+            selectedType?.levels.find((l) => l.id === selectedLevelId) ?? null,
+        [selectedType, selectedLevelId],
+    );
 
     const handleLevelUpdated = (updated: BuildingLevel) => {
         setBuildingTypes((types) =>
-            types.map((t) => (t.id !== updated.building_type_id ? t : { ...t, levels: t.levels.map((l) => (l.id === updated.id ? updated : l)) })),
+            types.map((t) =>
+                t.id !== updated.building_type_id
+                    ? t
+                    : {
+                          ...t,
+                          levels: t.levels.map((l) =>
+                              l.id === updated.id ? updated : l,
+                          ),
+                      },
+            ),
         );
     };
 
-    const handleAddLevel = async (typeId: number, level: number, file: File) => {
+    const handleAddLevel = async (
+        typeId: number,
+        level: number,
+        file: File,
+    ) => {
         const form = new FormData();
         form.append('level', String(level));
         form.append('image', file);
-        const { buildingLevel } = await apiFetch<{ buildingLevel: BuildingLevel }>(buildingLevelRoutes.store(typeId), form);
+        const { buildingLevel } = await apiFetch<{
+            buildingLevel: BuildingLevel;
+        }>(buildingLevelRoutes.store(typeId), form);
         setBuildingTypes((types) =>
             types.map((t) => {
                 if (t.id !== typeId) {
-return t;
-}
+                    return t;
+                }
 
-                const withoutExisting = t.levels.filter((l) => l.level !== buildingLevel.level);
+                const withoutExisting = t.levels.filter(
+                    (l) => l.level !== buildingLevel.level,
+                );
 
-                return { ...t, levels: [...withoutExisting, buildingLevel].sort((a, b) => a.level - b.level) };
+                return {
+                    ...t,
+                    levels: [...withoutExisting, buildingLevel].sort(
+                        (a, b) => a.level - b.level,
+                    ),
+                };
             }),
         );
         setSelectedLevelId(buildingLevel.id);
@@ -68,14 +105,16 @@ return t;
     return (
         <>
             <Head title="Calibrate" />
-            <div className="bg-background text-foreground min-h-screen">
-                <header className="border-border/60 bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md">
+            <div className="min-h-screen bg-background text-foreground">
+                <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-md">
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                         <Link href={home()} className="flex items-center gap-2">
-                            <span className="bg-primary text-primary-foreground flex size-8 items-center justify-center rounded-lg">
+                            <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
                                 <DiamondIcon weight="fill" className="size-4" />
                             </span>
-                            <span className="text-lg font-bold tracking-tight">Calibrate</span>
+                            <span className="text-lg font-bold tracking-tight">
+                                Calibrate
+                            </span>
                         </Link>
                         <ThemeToggle />
                     </div>
@@ -85,11 +124,16 @@ return t;
                     <Tabs defaultValue="scenery">
                         <TabsList className="mb-6">
                             <TabsTrigger value="scenery">Scenery</TabsTrigger>
-                            <TabsTrigger value="buildings">Building Types & Levels</TabsTrigger>
+                            <TabsTrigger value="buildings">
+                                Building Types & Levels
+                            </TabsTrigger>
                         </TabsList>
 
                         <TabsContent value="scenery">
-                            <SceneryCalibrationPanel initialSceneries={sceneries} />
+                            <SceneryCalibrationPanel
+                                sceneries={calibratedSceneries}
+                                onChange={setCalibratedSceneries}
+                            />
                         </TabsContent>
 
                         <TabsContent value="buildings">
@@ -108,13 +152,14 @@ return t;
                                         key={selectedLevel.id}
                                         type={selectedType}
                                         level={selectedLevel}
-                                        sceneries={sceneries}
+                                        sceneries={calibratedSceneries}
                                         onUpdated={handleLevelUpdated}
                                         onAddLevel={handleAddLevel}
                                     />
                                 ) : (
-                                    <div className="border-border/60 text-muted-foreground flex items-center justify-center rounded-xl border border-dashed p-16 text-sm">
-                                        Pilih building di sebelah kiri buat mulai kalibrasi.
+                                    <div className="flex items-center justify-center rounded-xl border border-dashed border-border/60 p-16 text-sm text-muted-foreground">
+                                        Pilih building di sebelah kiri buat
+                                        mulai kalibrasi.
                                     </div>
                                 )}
                             </div>

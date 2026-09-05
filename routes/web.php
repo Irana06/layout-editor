@@ -22,21 +22,23 @@ Route::patch('/layouts/{layout}/share', [LayoutController::class, 'share'])->nam
 Route::get('/layouts/{layout}', [LayoutController::class, 'show'])->name('layouts.show');
 Route::get('/s/{slug}', [PublicLayoutController::class, 'show'])->name('layouts.public');
 
-Route::get('/calibrate', [CalibrateController::class, 'index'])->name('calibrate');
-Route::post('/sceneries', [SceneryController::class, 'store'])->name('sceneries.store');
-Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update'])->name('sceneries.update');
-Route::delete('/sceneries/{scenery}', [SceneryController::class, 'destroy'])->name('sceneries.destroy');
-Route::patch('/building-types/{buildingType}', [BuildingTypeController::class, 'update'])->name('building-types.update');
-Route::delete('/building-types/{buildingType}', [BuildingTypeController::class, 'destroy'])->name('building-types.destroy');
-Route::post('/building-types/{buildingType}/levels', [BuildingLevelController::class, 'store'])->name('building-levels.store');
-Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update'])->name('building-levels.update');
-Route::delete('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'destroy'])->name('building-levels.destroy');
-Route::get('/unlock-rules', [UnlockRulePageController::class, 'index'])->name('unlock-rules');
-Route::get('/building-unlock-rules', [BuildingUnlockRuleController::class, 'index'])->name('building-unlock-rules.index');
-Route::put('/building-unlock-rules/bulk', [BuildingUnlockRuleController::class, 'bulkUpdate'])->name('building-unlock-rules.bulk');
-Route::post('/building-unlock-rules', [BuildingUnlockRuleController::class, 'store'])->name('building-unlock-rules.store');
-Route::patch('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'update'])->name('building-unlock-rules.update');
-Route::delete('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'destroy'])->name('building-unlock-rules.destroy');
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get('/calibrate', [CalibrateController::class, 'index'])->name('calibrate');
+    Route::post('/sceneries', [SceneryController::class, 'store'])->name('sceneries.store');
+    Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update'])->name('sceneries.update');
+    Route::delete('/sceneries/{scenery}', [SceneryController::class, 'destroy'])->name('sceneries.destroy');
+    Route::patch('/building-types/{buildingType}', [BuildingTypeController::class, 'update'])->name('building-types.update');
+    Route::delete('/building-types/{buildingType}', [BuildingTypeController::class, 'destroy'])->name('building-types.destroy');
+    Route::post('/building-types/{buildingType}/levels', [BuildingLevelController::class, 'store'])->name('building-levels.store');
+    Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update'])->name('building-levels.update');
+    Route::delete('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'destroy'])->name('building-levels.destroy');
+    Route::get('/unlock-rules', [UnlockRulePageController::class, 'index'])->name('unlock-rules');
+    Route::get('/building-unlock-rules', [BuildingUnlockRuleController::class, 'index'])->name('building-unlock-rules.index');
+    Route::put('/building-unlock-rules/bulk', [BuildingUnlockRuleController::class, 'bulkUpdate'])->name('building-unlock-rules.bulk');
+    Route::post('/building-unlock-rules', [BuildingUnlockRuleController::class, 'store'])->name('building-unlock-rules.store');
+    Route::patch('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'update'])->name('building-unlock-rules.update');
+    Route::delete('/building-unlock-rules/{buildingUnlockRule}', [BuildingUnlockRuleController::class, 'destroy'])->name('building-unlock-rules.destroy');
+});
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

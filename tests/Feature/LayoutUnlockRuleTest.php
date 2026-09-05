@@ -6,7 +6,9 @@ use App\Models\BuildingLevel;
 use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -52,7 +54,7 @@ class LayoutUnlockRuleTest extends TestCase
     }
 
     /** @param  list<array{building_type_id:int, level:int, gx:int, gy:int}>  $placements */
-    private function save(array $placements, int $thLevel = 1): \Illuminate\Testing\TestResponse
+    private function save(array $placements, int $thLevel = 1): TestResponse
     {
         return $this->postJson(route('layouts.store'), [
             'title' => 'Test Layout',
@@ -145,6 +147,8 @@ class LayoutUnlockRuleTest extends TestCase
 
     public function test_bulk_update_persists_rules_for_a_town_hall(): void
     {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+
         $this->putJson(route('building-unlock-rules.bulk'), [
             'th_level' => 5,
             'rules' => [

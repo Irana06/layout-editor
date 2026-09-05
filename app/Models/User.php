@@ -50,6 +50,15 @@ class User extends Authenticatable implements PasskeyUser
 
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === 'admin' || static::isConfiguredAdminEmail($this->email);
+    }
+
+    public static function isConfiguredAdminEmail(string $email): bool
+    {
+        return in_array(
+            strtolower(trim($email)),
+            config('admin.emails', []),
+            true,
+        );
     }
 }

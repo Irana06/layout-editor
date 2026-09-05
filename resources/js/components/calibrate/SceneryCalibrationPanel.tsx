@@ -1,4 +1,10 @@
-import { CheckCircleIcon, LockIcon, LockOpenIcon, UploadSimpleIcon, WarningCircleIcon } from '@phosphor-icons/react';
+import {
+    CheckCircleIcon,
+    LockIcon,
+    LockOpenIcon,
+    UploadSimpleIcon,
+    WarningCircleIcon,
+} from '@phosphor-icons/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +12,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { apiFetch } from '@/lib/api';
 import { gameAssetUrl } from '@/lib/game-assets';
-import { defaultCamera, GRID_N_PRESETS, isoToScreen   } from '@/lib/iso-grid';
-import type {Camera, GridCalibration} from '@/lib/iso-grid';
+import { defaultCamera, GRID_N_PRESETS, isoToScreen } from '@/lib/iso-grid';
+import type { Camera, GridCalibration } from '@/lib/iso-grid';
 import sceneryRoutes from '@/routes/sceneries';
 import type { Scenery } from '@/types/game';
 
@@ -17,13 +23,25 @@ const CANVAS_H = 560;
 type Draft = GridCalibration;
 
 function draftFrom(scenery: Scenery): Draft {
-    return { originX: scenery.origin_x, originY: scenery.origin_y, tileW: scenery.tile_w, tileH: scenery.tile_h, n: scenery.grid_n };
+    return {
+        originX: scenery.origin_x,
+        originY: scenery.origin_y,
+        tileW: scenery.tile_w,
+        tileH: scenery.tile_h,
+        n: scenery.grid_n,
+    };
 }
 
 /** Owns the canvas + calibration form for exactly one scenery. Mounted with `key={scenery.id}`
  * by the parent so switching scenery gives it a clean slate via lazy initial state, instead of
  * an effect resetting state on prop change. */
-function SceneryDetailPanel({ scenery, onSaved }: { scenery: Scenery; onSaved: (scenery: Scenery) => void }) {
+function SceneryDetailPanel({
+    scenery,
+    onSaved,
+}: {
+    scenery: Scenery;
+    onSaved: (scenery: Scenery) => void;
+}) {
     const [mode, setMode] = useState<'view' | 'grid'>('view');
     const [draft, setDraft] = useState<Draft>(() => draftFrom(scenery));
     const [camera, setCamera] = useState<Camera>(defaultCamera());
@@ -31,14 +49,27 @@ function SceneryDetailPanel({ scenery, onSaved }: { scenery: Scenery; onSaved: (
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
-    const dragState = useRef<{ dragging: boolean; moved: boolean; lastX: number; lastY: number }>({ dragging: false, moved: false, lastX: 0, lastY: 0 });
+    const dragState = useRef<{
+        dragging: boolean;
+        moved: boolean;
+        lastX: number;
+        lastY: number;
+    }>({ dragging: false, moved: false, lastX: 0, lastY: 0 });
 
     useEffect(() => {
         const img = new Image();
         img.onload = () => {
             imageRef.current = img;
-            const fit = Math.min(CANVAS_W / img.naturalWidth, CANVAS_H / img.naturalHeight, 1);
-            setCamera({ x: img.naturalWidth / 2, y: img.naturalHeight / 2, zoom: fit || 1 });
+            const fit = Math.min(
+                CANVAS_W / img.naturalWidth,
+                CANVAS_H / img.naturalHeight,
+                1,
+            );
+            setCamera({
+                x: img.naturalWidth / 2,
+                y: img.naturalHeight / 2,
+                zoom: fit || 1,
+            });
         };
         img.src = gameAssetUrl(scenery.file_path);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -49,8 +80,8 @@ function SceneryDetailPanel({ scenery, onSaved }: { scenery: Scenery; onSaved: (
         const ctx = canvas?.getContext('2d');
 
         if (!canvas || !ctx) {
-return;
-}
+            return;
+        }
 
         ctx.fillStyle = '#000';
         ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
@@ -59,16 +90,35 @@ return;
 
         if (img?.complete && img.naturalWidth) {
             const s = camera.zoom;
-            const topLeftScreen = { x: CANVAS_W / 2 + (0 - camera.x) * s, y: CANVAS_H / 2 + (0 - camera.y) * s };
-            ctx.drawImage(img, topLeftScreen.x, topLeftScreen.y, img.naturalWidth * s, img.naturalHeight * s);
+            const topLeftScreen = {
+                x: CANVAS_W / 2 + (0 - camera.x) * s,
+                y: CANVAS_H / 2 + (0 - camera.y) * s,
+            };
+            ctx.drawImage(
+                img,
+                topLeftScreen.x,
+                topLeftScreen.y,
+                img.naturalWidth * s,
+                img.naturalHeight * s,
+            );
         }
 
-        ctx.strokeStyle = mode === 'grid' ? 'rgba(255,182,72,0.55)' : 'rgba(255,255,255,0.28)';
+        ctx.strokeStyle =
+            mode === 'grid'
+                ? 'rgba(255,182,72,0.55)'
+                : 'rgba(255,255,255,0.28)';
         ctx.lineWidth = Math.max(1, camera.zoom * 0.6);
 
         for (let gx = 0; gx <= draft.n; gx++) {
             const p1 = isoToScreen(draft, camera, CANVAS_W, CANVAS_H, gx, 0);
-            const p2 = isoToScreen(draft, camera, CANVAS_W, CANVAS_H, gx, draft.n);
+            const p2 = isoToScreen(
+                draft,
+                camera,
+                CANVAS_W,
+                CANVAS_H,
+                gx,
+                draft.n,
+            );
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
@@ -77,7 +127,14 @@ return;
 
         for (let gy = 0; gy <= draft.n; gy++) {
             const p1 = isoToScreen(draft, camera, CANVAS_W, CANVAS_H, 0, gy);
-            const p2 = isoToScreen(draft, camera, CANVAS_W, CANVAS_H, draft.n, gy);
+            const p2 = isoToScreen(
+                draft,
+                camera,
+                CANVAS_W,
+                CANVAS_H,
+                draft.n,
+                gy,
+            );
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
@@ -100,31 +157,40 @@ return;
     const locked = scenery.locked;
 
     const onMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        dragState.current = { dragging: true, moved: false, lastX: e.clientX, lastY: e.clientY };
+        dragState.current = {
+            dragging: true,
+            moved: false,
+            lastX: e.clientX,
+            lastY: e.clientY,
+        };
     };
 
     const onMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
         const drag = dragState.current;
 
         if (!drag.dragging) {
-return;
-}
+            return;
+        }
 
         const dx = e.clientX - drag.lastX;
         const dy = e.clientY - drag.lastY;
 
         if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-drag.moved = true;
-}
+            drag.moved = true;
+        }
 
         if (!drag.moved) {
-return;
-}
+            return;
+        }
 
         const s = camera.zoom;
 
         if (mode === 'grid' && !locked) {
-            setDraft((d) => ({ ...d, originX: d.originX + dx / s, originY: d.originY + dy / s }));
+            setDraft((d) => ({
+                ...d,
+                originX: d.originX + dx / s,
+                originY: d.originY + dy / s,
+            }));
         } else if (mode === 'view') {
             setCamera((c) => ({ ...c, x: c.x - dx / s, y: c.y - dy / s }));
         }
@@ -140,7 +206,10 @@ return;
     const onWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-        setCamera((c) => ({ ...c, zoom: Math.min(10, Math.max(0.1, c.zoom * factor)) }));
+        setCamera((c) => ({
+            ...c,
+            zoom: Math.min(10, Math.max(0.1, c.zoom * factor)),
+        }));
     };
 
     const updateDraftField = (field: keyof Draft, value: number) => {
@@ -151,14 +220,17 @@ return;
         setSaving(true);
 
         try {
-            const { scenery: updated } = await apiFetch<{ scenery: Scenery }>(sceneryRoutes.update(scenery.id), {
-                origin_x: draft.originX,
-                origin_y: draft.originY,
-                tile_w: draft.tileW,
-                tile_h: draft.tileH,
-                grid_n: draft.n,
-                calibrated: true,
-            });
+            const { scenery: updated } = await apiFetch<{ scenery: Scenery }>(
+                sceneryRoutes.update(scenery.id),
+                {
+                    origin_x: draft.originX,
+                    origin_y: draft.originY,
+                    tile_w: draft.tileW,
+                    tile_h: draft.tileH,
+                    grid_n: draft.n,
+                    calibrated: true,
+                },
+            );
             onSaved(updated);
         } finally {
             setSaving(false);
@@ -166,23 +238,28 @@ return;
     };
 
     const toggleLock = async () => {
-        const { scenery: updated } = await apiFetch<{ scenery: Scenery }>(sceneryRoutes.update(scenery.id), { locked: !scenery.locked });
+        const { scenery: updated } = await apiFetch<{ scenery: Scenery }>(
+            sceneryRoutes.update(scenery.id),
+            { locked: !scenery.locked },
+        );
         onSaved(updated);
 
         if (!scenery.locked) {
-setMode('view');
-}
+            setMode('view');
+        }
     };
 
     return (
         <>
             <div className="space-y-3">
-                <div className="border-border/60 bg-card overflow-hidden rounded-xl border">
+                <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
                     <canvas
                         ref={canvasRef}
                         width={CANVAS_W}
                         height={CANVAS_H}
-                        className={mode === 'grid' ? 'cursor-move' : 'cursor-crosshair'}
+                        className={
+                            mode === 'grid' ? 'cursor-move' : 'cursor-crosshair'
+                        }
                         onMouseDown={onMouseDown}
                         onMouseMove={onMouseMove}
                         onMouseUp={onMouseUp}
@@ -190,7 +267,7 @@ setMode('view');
                         onWheel={onWheel}
                     />
                 </div>
-                <p className="text-muted-foreground text-xs">
+                <p className="text-xs text-muted-foreground">
                     Resolusi: {scenery.image_width} × {scenery.image_height}px
                 </p>
             </div>
@@ -198,10 +275,21 @@ setMode('view');
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div className="flex gap-1 rounded-lg border p-1">
-                        <Button size="sm" variant={mode === 'view' ? 'default' : 'ghost'} onClick={() => setMode('view')} className="rounded-md">
+                        <Button
+                            size="sm"
+                            variant={mode === 'view' ? 'default' : 'ghost'}
+                            onClick={() => setMode('view')}
+                            className="rounded-md"
+                        >
                             Lihat
                         </Button>
-                        <Button size="sm" variant={mode === 'grid' ? 'default' : 'ghost'} disabled={locked} onClick={() => setMode('grid')} className="rounded-md">
+                        <Button
+                            size="sm"
+                            variant={mode === 'grid' ? 'default' : 'ghost'}
+                            disabled={locked}
+                            onClick={() => setMode('grid')}
+                            className="rounded-md"
+                        >
                             Kalibrasi
                         </Button>
                     </div>
@@ -210,53 +298,121 @@ setMode('view');
                         onClick={() => void toggleLock()}
                         className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${locked ? 'border-amber-500 text-amber-500' : 'border-emerald-500 text-emerald-500'}`}
                     >
-                        {locked ? <LockIcon className="size-3.5" /> : <LockOpenIcon className="size-3.5" />}
+                        {locked ? (
+                            <LockIcon className="size-3.5" />
+                        ) : (
+                            <LockOpenIcon className="size-3.5" />
+                        )}
                         {locked ? 'Terkunci' : 'Terbuka'}
                     </button>
                 </div>
 
-                <fieldset disabled={locked} className="space-y-3 disabled:opacity-40">
+                <fieldset
+                    disabled={locked}
+                    className="space-y-3 disabled:opacity-40"
+                >
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
                             <Label className="text-xs">Origin X</Label>
-                            <Input type="number" value={draft.originX} onChange={(e) => updateDraftField('originX', Number(e.target.value))} />
+                            <Input
+                                type="number"
+                                value={draft.originX}
+                                onChange={(e) =>
+                                    updateDraftField(
+                                        'originX',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-xs">Origin Y</Label>
-                            <Input type="number" value={draft.originY} onChange={(e) => updateDraftField('originY', Number(e.target.value))} />
+                            <Input
+                                type="number"
+                                value={draft.originY}
+                                onChange={(e) =>
+                                    updateDraftField(
+                                        'originY',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-xs">Tile W</Label>
-                            <Input type="number" value={draft.tileW} onChange={(e) => updateDraftField('tileW', Number(e.target.value))} />
+                            <Input
+                                type="number"
+                                value={draft.tileW}
+                                onChange={(e) =>
+                                    updateDraftField(
+                                        'tileW',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
                         </div>
                         <div className="space-y-1">
                             <Label className="text-xs">Tile H</Label>
-                            <Input type="number" value={draft.tileH} onChange={(e) => updateDraftField('tileH', Number(e.target.value))} />
+                            <Input
+                                type="number"
+                                value={draft.tileH}
+                                onChange={(e) =>
+                                    updateDraftField(
+                                        'tileH',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
                         </div>
                         <div className="col-span-2 space-y-1">
                             <Label className="text-xs">Grid N</Label>
-                            <Input type="number" value={draft.n} onChange={(e) => updateDraftField('n', Number(e.target.value))} />
+                            <Input
+                                type="number"
+                                value={draft.n}
+                                onChange={(e) =>
+                                    updateDraftField(
+                                        'n',
+                                        Number(e.target.value),
+                                    )
+                                }
+                            />
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                         {GRID_N_PRESETS.map((n) => (
-                            <Button key={n} type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => updateDraftField('n', n)}>
+                            <Button
+                                key={n}
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => updateDraftField('n', n)}
+                            >
                                 {n}×{n}
                             </Button>
                         ))}
                     </div>
                 </fieldset>
 
-                <p className="text-muted-foreground text-xs leading-relaxed">
-                    Klik &quot;Kalibrasi&quot; lalu drag di kanvas buat geser origin. Scroll buat zoom. Kunci grid kalau udah pas biar nggak kegeser nggak sengaja.
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                    Klik &quot;Kalibrasi&quot; lalu drag di kanvas buat geser
+                    origin. Scroll buat zoom. Kunci grid kalau udah pas biar
+                    nggak kegeser nggak sengaja.
                 </p>
 
                 <div className="flex items-center gap-2 pt-2">
-                    <Switch checked={locked} onCheckedChange={() => void toggleLock()} />
+                    <Switch
+                        checked={locked}
+                        onCheckedChange={() => void toggleLock()}
+                    />
                     <Label className="text-xs">Kunci grid</Label>
                 </div>
 
-                <Button className="w-full rounded-full" disabled={locked || saving} onClick={() => void save()}>
+                <Button
+                    className="w-full rounded-full"
+                    disabled={locked || saving}
+                    onClick={() => void save()}
+                >
                     {saving ? 'Menyimpan...' : 'Simpan kalibrasi'}
                 </Button>
             </div>
@@ -264,10 +420,22 @@ setMode('view');
     );
 }
 
-export function SceneryCalibrationPanel({ initialSceneries }: { initialSceneries: Scenery[] }) {
-    const [sceneries, setSceneries] = useState(initialSceneries);
-    const [selectedId, setSelectedId] = useState<number | null>(initialSceneries[0]?.id ?? null);
-    const selected = useMemo(() => sceneries.find((s) => s.id === selectedId) ?? null, [sceneries, selectedId]);
+type SceneryCalibrationPanelProps = {
+    sceneries: Scenery[];
+    onChange: (sceneries: Scenery[]) => void;
+};
+
+export function SceneryCalibrationPanel({
+    sceneries,
+    onChange,
+}: SceneryCalibrationPanelProps) {
+    const [selectedId, setSelectedId] = useState<number | null>(
+        sceneries[0]?.id ?? null,
+    );
+    const selected = useMemo(
+        () => sceneries.find((s) => s.id === selectedId) ?? null,
+        [sceneries, selectedId],
+    );
     const [uploading, setUploading] = useState(false);
 
     const uploadScenery = async (file: File) => {
@@ -277,8 +445,11 @@ export function SceneryCalibrationPanel({ initialSceneries }: { initialSceneries
             const form = new FormData();
             form.append('name', file.name.replace(/\.[^.]+$/, ''));
             form.append('image', file);
-            const { scenery } = await apiFetch<{ scenery: Scenery }>(sceneryRoutes.store(), form);
-            setSceneries((list) => [...list, scenery]);
+            const { scenery } = await apiFetch<{ scenery: Scenery }>(
+                sceneryRoutes.store(),
+                form,
+            );
+            onChange([...sceneries, scenery]);
             setSelectedId(scenery.id);
         } finally {
             setUploading(false);
@@ -286,7 +457,7 @@ export function SceneryCalibrationPanel({ initialSceneries }: { initialSceneries
     };
 
     const handleSaved = (updated: Scenery) => {
-        setSceneries((list) => list.map((s) => (s.id === updated.id ? updated : s)));
+        onChange(sceneries.map((s) => (s.id === updated.id ? updated : s)));
     };
 
     return (
@@ -294,7 +465,7 @@ export function SceneryCalibrationPanel({ initialSceneries }: { initialSceneries
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold">Scenery</h3>
-                    <label className="text-primary cursor-pointer text-xs font-medium hover:underline">
+                    <label className="cursor-pointer text-xs font-medium text-primary hover:underline">
                         <UploadSimpleIcon className="mr-1 inline size-3.5" />
                         Upload
                         <input
@@ -306,8 +477,8 @@ export function SceneryCalibrationPanel({ initialSceneries }: { initialSceneries
                                 const file = e.target.files?.[0];
 
                                 if (file) {
-void uploadScenery(file);
-}
+                                    void uploadScenery(file);
+                                }
 
                                 e.target.value = '';
                             }}
@@ -320,14 +491,25 @@ void uploadScenery(file);
                             key={s.id}
                             type="button"
                             onClick={() => setSelectedId(s.id)}
-                            className={`border-border/60 relative overflow-hidden rounded-lg border text-left transition-colors ${selectedId === s.id ? 'border-primary ring-primary/40 ring-2' : 'hover:border-primary/50'}`}
+                            className={`relative overflow-hidden rounded-lg border border-border/60 text-left transition-colors ${selectedId === s.id ? 'border-primary ring-2 ring-primary/40' : 'hover:border-primary/50'}`}
                         >
-                            <img src={gameAssetUrl(s.file_path)} alt={s.name} loading="lazy" className="h-16 w-full object-cover" />
-                            <div className="bg-card/90 flex items-center gap-1 px-1.5 py-1 text-[10px] font-medium">
+                            <img
+                                src={gameAssetUrl(s.file_path)}
+                                alt={s.name}
+                                loading="lazy"
+                                className="h-16 w-full object-cover"
+                            />
+                            <div className="flex items-center gap-1 bg-card/90 px-1.5 py-1 text-[10px] font-medium">
                                 {s.calibrated ? (
-                                    <CheckCircleIcon weight="fill" className="size-3 shrink-0 text-emerald-500" />
+                                    <CheckCircleIcon
+                                        weight="fill"
+                                        className="size-3 shrink-0 text-emerald-500"
+                                    />
                                 ) : (
-                                    <WarningCircleIcon weight="fill" className="text-muted-foreground size-3 shrink-0" />
+                                    <WarningCircleIcon
+                                        weight="fill"
+                                        className="size-3 shrink-0 text-muted-foreground"
+                                    />
                                 )}
                                 <span className="truncate">{s.name}</span>
                             </div>
@@ -337,9 +519,13 @@ void uploadScenery(file);
             </div>
 
             {selected ? (
-                <SceneryDetailPanel key={selected.id} scenery={selected} onSaved={handleSaved} />
+                <SceneryDetailPanel
+                    key={selected.id}
+                    scenery={selected}
+                    onSaved={handleSaved}
+                />
             ) : (
-                <div className="border-border/60 text-muted-foreground col-span-2 flex items-center justify-center rounded-xl border border-dashed p-16 text-sm">
+                <div className="col-span-2 flex items-center justify-center rounded-xl border border-dashed border-border/60 p-16 text-sm text-muted-foreground">
                     Upload scenery pertama buat mulai kalibrasi.
                 </div>
             )}
