@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
 Offset isoPoint(Scenery scenery, double x, double y) => Offset(
@@ -17,13 +16,11 @@ class BuildingSprite extends StatelessWidget {
     required this.gridY,
     required this.footprintWidth,
     required this.footprintHeight,
-    this.selected = false,
     this.opacity = 1,
   });
   final Scenery scenery;
   final BuildingLevel level;
   final double gridX, gridY, footprintWidth, footprintHeight;
-  final bool selected;
   final double opacity;
 
   @override
@@ -49,20 +46,13 @@ class BuildingSprite extends StatelessWidget {
           translation: const Offset(0, -1),
           child: Opacity(
             opacity: opacity,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: selected
-                    ? Border.all(color: AppColors.brass, width: 2)
-                    : null,
-              ),
-              child: Image.network(
-                level.imageUrl,
-                width: width,
-                fit: BoxFit.fitWidth,
-                errorBuilder: (_, _, _) => const SizedBox(
-                  height: 80,
-                  child: Icon(Icons.broken_image_outlined),
-                ),
+            child: Image.network(
+              level.imageUrl,
+              width: width,
+              fit: BoxFit.fitWidth,
+              errorBuilder: (_, _, _) => const SizedBox(
+                height: 80,
+                child: Icon(Icons.broken_image_outlined),
               ),
             ),
           ),

@@ -25,6 +25,13 @@ class CatalogBootstrap {
   final List<BuildingType> buildingTypes;
   final List<BuildingUnlockRule> unlockRules;
 
+  CatalogBootstrap withUnlockRules(List<BuildingUnlockRule> rules) =>
+      CatalogBootstrap(
+        sceneries: sceneries,
+        buildingTypes: buildingTypes,
+        unlockRules: rules,
+      );
+
   BuildingType? get townHall {
     for (final type in buildingTypes) {
       if (type.isTownHall) return type;
@@ -117,6 +124,7 @@ class BuildingType {
     required this.id,
     required this.name,
     required this.category,
+    this.subfolder,
     required this.isTownHall,
     required this.defaultGridWidth,
     required this.defaultGridHeight,
@@ -127,6 +135,7 @@ class BuildingType {
     id: _int(json['id']),
     name: json['name'] as String? ?? 'Unknown building',
     category: json['category'] as String? ?? 'other',
+    subfolder: json['subfolder'] as String?,
     isTownHall: json['is_town_hall'] == true || json['is_town_hall'] == 1,
     defaultGridWidth: _int(json['default_grid_width'], fallback: 1),
     defaultGridHeight: _int(json['default_grid_height'], fallback: 1),
@@ -138,6 +147,7 @@ class BuildingType {
   final int id;
   final String name;
   final String category;
+  final String? subfolder;
   final bool isTownHall;
   final int defaultGridWidth;
   final int defaultGridHeight;

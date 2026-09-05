@@ -5,7 +5,9 @@ import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/calibration/data/calibration_api.dart';
 import 'package:shiclash/features/calibration/domain/calibration_draft.dart';
+import 'package:shiclash/features/calibration/presentation/building_level_picker.dart';
 import 'package:shiclash/features/calibration/presentation/calibration_canvas.dart';
+import 'package:shiclash/features/calibration/presentation/town_hall_rules_panel.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
@@ -30,12 +32,16 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   BuildingType? _type;
   BuildingLevel? _level;
   CalibrationDraft? _draft;
-  bool _building = false, _loading = true, _saving = false;
+  final _rulesKey = GlobalKey<TownHallRulesPanelState>();
+  int _section = 0;
+  bool _loading = true, _saving = false;
   bool _edit = false, _grid = true;
   double _opacity = .8;
   String? _error, _status;
   bool _needsLogin = false;
-  String _query = '';
+
+  bool get _building => _section == 1;
+  bool get _rules => _section == 2;
 
   @override
   void initState() {
@@ -95,7 +101,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   void _newDraft() {
     _draft?.dispose();
-    final values = _building
+    final values = _rules
+        ? null
+        : _building
         ? _level?.calibrationValues()
         : _scenery?.calibrationValues();
     _draft = values == null ? null : CalibrationDraft(values);
@@ -116,6 +124,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   Future<bool> _discard() async {
     if (_saving) return false;
+    if (_rulesKey.currentState?.dirty == true) {
+      return _rulesKey.currentState!.confirmDiscard();
+    }
     if (_draft?.dirty != true) return true;
     return await showDialog<bool>(
           context: context,
@@ -278,7 +289,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
 
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_saving && _draft?.dirty != true,
+    canPop:
+        !_saving &&
+        _draft?.dirty != true &&
+        _rulesKey.currentState?.dirty != true,
     onPopInvokedWithResult: (didPop, result) async {
       if (!didPop && await _discard() && mounted) {
         _draft?.saved(_draft!.values);
@@ -341,23 +355,28 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: SegmentedButton<bool>(
+          child: SegmentedButton<int>(
             segments: const [
               ButtonSegment(
-                value: false,
+                value: 0,
                 label: Text('Scenery'),
                 icon: Icon(Icons.landscape_outlined),
               ),
               ButtonSegment(
-                value: true,
+                value: 1,
                 label: Text('Building'),
                 icon: Icon(Icons.castle_outlined),
               ),
+              ButtonSegment(
+                value: 2,
+                label: Text('Aturan TH'),
+                icon: Icon(Icons.rule_folder_outlined),
+              ),
             ],
-            selected: {_building},
+            selected: {_section},
             onSelectionChanged: _saving
                 ? null
-                : (v) => _switch(() => _building = v.first),
+                : (v) => _switch(() => _section = v.first),
           ),
         ),
         Expanded(
@@ -383,200 +402,185 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                     ),
                   ),
                 ),
-              _selector<Scenery>(
-                'Scenery preview',
-                _scenery,
-                _catalog!.sceneries,
-                (s) =>
-                    '${s.name}${s.locked ? ' · terkunci' : ''}${s.calibrated ? '' : ' · belum dikalibrasi'}',
-                (s) => _building
-                    ? setState(() {
-                        _scenery = s;
-                        _edit = false;
-                      })
-                    : _switch(() => _scenery = s),
-              ),
-              if (_building) ...[
-                const SizedBox(height: 12),
-                TextField(
-                  decoration: const InputDecoration(
-                    labelText: 'Cari building',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-                const SizedBox(height: 12),
-                _selector<BuildingType>(
-                  'Building',
-                  _type,
-                  _catalog!.buildingTypes
-                      .where(
-                        (t) =>
-                            t == _type ||
-                            t.name.toLowerCase().contains(_query.toLowerCase()),
-                      )
-                      .toList(),
-                  (t) => '${t.name} · ${t.category}',
-                  (t) => _switch(() {
-                    _type = t;
-                    _level = t.levels.firstOrNull;
-                  }),
-                ),
-                const SizedBox(height: 12),
-                _selector<BuildingLevel>(
-                  'Level',
-                  _level,
-                  _type?.levels ?? [],
-                  (l) => 'Level ${l.level}',
-                  (l) => _switch(() => _level = l),
-                ),
-              ],
-              const SizedBox(height: 12),
-              if (_scenery == null || (_building && _level == null))
-                const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: Text(
-                    'Belum ada scenery atau level building. Tambahkan aset melalui pengelolaan katalog website.',
-                  ),
+              if (_rules)
+                TownHallRulesPanel(
+                  key: _rulesKey,
+                  catalog: _catalog!,
+                  api: _api,
+                  onSaved: (rules) {
+                    setState(() => _catalog = _catalog!.withUnlockRules(rules));
+                    widget.repository.invalidate();
+                  },
                 )
-              else if (_draft != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: SizedBox(
-                    height: math.min(
-                      MediaQuery.sizeOf(context).height * .42,
-                      440,
-                    ),
-                    child: CalibrationCanvas(
-                      key: ValueKey(
-                        '${_building}_${_scenery!.id}_${_building ? _level!.id : 0}',
-                      ),
-                      scenery: _building
-                          ? _scenery!
-                          : _scenery!.withCalibration(_draft!.values),
-                      type: _building ? _type : null,
-                      level: _building
-                          ? _level!.withCalibration(_draft!.values)
-                          : null,
-                      editMode: _edit && !_locked && !_saving,
-                      showGrid: _grid,
-                      opacity: _opacity,
-                      onDrag: _drag,
-                      onStart: _draft!.beginGesture,
-                      onEnd: _draft!.endGesture,
-                    ),
-                  ),
-                ),
-                Wrap(
-                  spacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    FilterChip(
-                      label: Text(
-                        _edit
-                            ? 'Geser ${_building ? 'building' : 'grid'}'
-                            : 'Zoom / pan',
-                      ),
-                      selected: _edit,
-                      onSelected: _locked || _saving
-                          ? null
-                          : (v) => setState(() => _edit = v),
-                    ),
-                    FilterChip(
-                      label: const Text('Grid'),
-                      selected: _grid,
-                      onSelected: (v) => setState(() => _grid = v),
-                    ),
-                    IconButton(
-                      tooltip: 'Undo',
-                      onPressed: !_saving && _draft!.canUndo
-                          ? _draft!.undo
-                          : null,
-                      icon: const Icon(Icons.undo),
-                    ),
-                    IconButton(
-                      tooltip: 'Redo',
-                      onPressed: !_saving && _draft!.canRedo
-                          ? _draft!.redo
-                          : null,
-                      icon: const Icon(Icons.redo),
-                    ),
-                  ],
-                ),
-                Text(
-                  _edit
-                      ? 'Geser satu jari untuk mengatur ${_building ? 'offset building' : 'titik origin grid'}.'
-                      : 'Cubit untuk zoom, geser untuk pan. Aktifkan mode geser untuk mengubah kalibrasi.',
-                  style: const TextStyle(color: AppColors.muted),
+              else ...[
+                _selector<Scenery>(
+                  'Scenery preview',
+                  _scenery,
+                  _catalog!.sceneries,
+                  (s) =>
+                      '${s.name}${s.locked ? ' · terkunci' : ''}${s.calibrated ? '' : ' · belum dikalibrasi'}',
+                  (s) => _building
+                      ? setState(() {
+                          _scenery = s;
+                          _edit = false;
+                        })
+                      : _switch(() => _scenery = s),
                 ),
                 if (_building) ...[
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Transparansi building · garis biru menandai footprint',
+                  const SizedBox(height: 12),
+                  _buildingPicker(),
+                ],
+                const SizedBox(height: 12),
+              ],
+              if (!_rules)
+                if (_scenery == null || (_building && _level == null))
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Text(
+                      'Belum ada scenery atau level building. Tambahkan aset melalui pengelolaan katalog website.',
+                    ),
+                  )
+                else if (_draft != null) ...[
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      height: math.min(
+                        MediaQuery.sizeOf(context).height * .42,
+                        440,
+                      ),
+                      child: CalibrationCanvas(
+                        key: ValueKey(
+                          '${_building}_${_scenery!.id}_${_building ? _level!.id : 0}',
+                        ),
+                        scenery: _building
+                            ? _scenery!
+                            : _scenery!.withCalibration(_draft!.values),
+                        type: _building ? _type : null,
+                        level: _building
+                            ? _level!.withCalibration(_draft!.values)
+                            : null,
+                        editMode: _edit && !_locked && !_saving,
+                        showGrid: _grid,
+                        opacity: _opacity,
+                        onDrag: _drag,
+                        onStart: _draft!.beginGesture,
+                        onEnd: _draft!.endGesture,
+                      ),
+                    ),
                   ),
-                  Slider(
-                    value: _opacity,
-                    min: .1,
-                    max: 1,
-                    onChanged: (v) => setState(() => _opacity = v),
+                  Wrap(
+                    spacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      FilterChip(
+                        label: Text(
+                          _edit
+                              ? 'Geser ${_building ? 'building' : 'grid'}'
+                              : 'Zoom / pan',
+                        ),
+                        selected: _edit,
+                        onSelected: _locked || _saving
+                            ? null
+                            : (v) => setState(() => _edit = v),
+                      ),
+                      FilterChip(
+                        label: const Text('Grid'),
+                        selected: _grid,
+                        onSelected: (v) => setState(() => _grid = v),
+                      ),
+                      IconButton(
+                        tooltip: 'Undo',
+                        onPressed: !_saving && _draft!.canUndo
+                            ? _draft!.undo
+                            : null,
+                        icon: const Icon(Icons.undo),
+                      ),
+                      IconButton(
+                        tooltip: 'Redo',
+                        onPressed: !_saving && _draft!.canRedo
+                            ? _draft!.redo
+                            : null,
+                        icon: const Icon(Icons.redo),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    _edit
+                        ? 'Geser satu jari untuk mengatur ${_building ? 'offset building' : 'titik origin grid'}.'
+                        : 'Cubit untuk zoom, geser untuk pan. Aktifkan mode geser untuk mengubah kalibrasi.',
+                    style: const TextStyle(color: AppColors.muted),
+                  ),
+                  if (_building) ...[
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Transparansi building · garis biru menandai footprint',
+                    ),
+                    Slider(
+                      value: _opacity,
+                      min: .1,
+                      max: 1,
+                      onChanged: (v) => setState(() => _opacity = v),
+                    ),
+                  ],
+                  if (_locked)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        'Grid terkunci. Buka kunci untuk mengubah kalibrasi.',
+                      ),
+                    ),
+                  IgnorePointer(
+                    ignoring: _saving || _locked,
+                    child: Opacity(
+                      opacity: _locked ? .45 : 1,
+                      child: _fields(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _saving || _locked || !_draft!.dirty
+                            ? null
+                            : _draft!.reset,
+                        icon: const Icon(Icons.restore),
+                        label: const Text('Nilai tersimpan'),
+                      ),
+                      if (!_building)
+                        OutlinedButton.icon(
+                          onPressed: _saving ? null : _toggleLock,
+                          icon: Icon(
+                            _scenery!.locked
+                                ? Icons.lock_open
+                                : Icons.lock_outline,
+                          ),
+                          label: Text(
+                            _scenery!.locked ? 'Buka kunci' : 'Kunci grid',
+                          ),
+                        ),
+                      if (_building)
+                        OutlinedButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _draft!.change({
+                                  'grid_width': null,
+                                  'grid_height': null,
+                                }),
+                          child: const Text('Footprint bawaan'),
+                        ),
+                      if (_building && (_type?.levels.length ?? 0) > 1)
+                        OutlinedButton(
+                          onPressed: _saving ? null : _copyLevel,
+                          child: const Text('Salin dari level lain'),
+                        ),
+                    ],
                   ),
                 ],
-                if (_locked)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Text(
-                      'Grid terkunci. Buka kunci untuk mengubah kalibrasi.',
-                    ),
-                  ),
-                IgnorePointer(
-                  ignoring: _saving || _locked,
-                  child: Opacity(opacity: _locked ? .45 : 1, child: _fields()),
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _saving || _locked || !_draft!.dirty
-                          ? null
-                          : _draft!.reset,
-                      icon: const Icon(Icons.restore),
-                      label: const Text('Nilai tersimpan'),
-                    ),
-                    if (!_building)
-                      OutlinedButton.icon(
-                        onPressed: _saving ? null : _toggleLock,
-                        icon: Icon(
-                          _scenery!.locked
-                              ? Icons.lock_open
-                              : Icons.lock_outline,
-                        ),
-                        label: Text(
-                          _scenery!.locked ? 'Buka kunci' : 'Kunci grid',
-                        ),
-                      ),
-                    if (_building)
-                      OutlinedButton(
-                        onPressed: _saving
-                            ? null
-                            : () => _draft!.change({
-                                'grid_width': null,
-                                'grid_height': null,
-                              }),
-                        child: const Text('Footprint bawaan'),
-                      ),
-                    if (_building && (_type?.levels.length ?? 0) > 1)
-                      OutlinedButton(
-                        onPressed: _saving ? null : _copyLevel,
-                        child: const Text('Salin dari level lain'),
-                      ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),
-        if (_draft != null)
+        if (_draft != null && !_rules)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(
@@ -607,6 +611,76 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildingPicker() {
+    final type = _type;
+    final level = _level;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: _saving
+          ? null
+          : () async {
+              final selection = await showBuildingLevelPicker(
+                context,
+                buildingTypes: _catalog!.buildingTypes,
+                selectedType: type,
+                selectedLevel: level,
+              );
+              if (selection == null || !mounted) return;
+              await _switch(() {
+                _type = selection.type;
+                _level = selection.level;
+              });
+            },
+      child: InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Aset building & level',
+          suffixIcon: Icon(Icons.folder_open_outlined),
+        ),
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: 54,
+              child: Image.network(
+                level?.imageUrl ?? '',
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const Icon(Icons.home_work_outlined),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    type == null || level == null
+                        ? 'Pilih building'
+                        : '${type.name} · Level ${level.level}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  if (type != null)
+                    Text(
+                      [
+                        type.category,
+                        if (type.subfolder?.isNotEmpty == true) type.subfolder!,
+                      ].join(' / '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -721,8 +795,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         child: Text(
           '1. Scenery: atur lebar/tinggi tile dan jumlah tile. Geser origin hingga grid mengikuti tanah base, simpan, lalu kunci.\n\n'
           '2. Building: pilih jenis dan level. Atur footprint sesuai tile yang ditempati. Gunakan skala untuk ukuran gambar dan offset untuk posisi visual.\n\n'
-          '3. Garis biru adalah batas footprint. Turunkan transparansi untuk melihat tanah di bawah building. Zoom/pan untuk inspeksi, mode geser untuk offset.\n\n'
-          '4. Simpan ke server untuk menerapkan ke katalog bersama. Salin level lain mengisi nilai pratinjau; periksa gambar level baru sebelum menyimpan.\n\n'
+          '3. Aturan TH: pilih Town Hall, aktifkan building yang tersedia, lalu isi level dan jumlah maksimum. Aturan ini langsung membatasi pilihan di Editor.\n\n'
+          '4. Garis biru adalah batas footprint. Lapisan rumput mengikuti footprint dan area putih satu tile di luarnya menandai zona deployment pasukan.\n\n'
+          '5. Simpan ke server untuk menerapkan ke katalog bersama. Salin level lain mengisi nilai pratinjau; periksa gambar level baru sebelum menyimpan.\n\n'
           'Undo/redo berlaku untuk sesi kalibrasi ini. Perubahan belum tersimpan tidak diterapkan ke editor.',
         ),
       ),

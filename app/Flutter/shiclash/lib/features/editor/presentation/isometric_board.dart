@@ -111,12 +111,21 @@ class _IsometricBoardState extends State<IsometricBoard> {
                                 ),
                               ),
                             ),
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: CustomPaint(
+                                painter: _PlacementGroundPainter(
+                                  scenery,
+                                  controller,
+                                ),
+                              ),
+                            ),
+                          ),
                           ...sorted.map(
                             (placement) => _PlacementSprite(
                               placement: placement,
                               controller: controller,
                               scenery: scenery,
-                              selected: placement.id == controller.selectedId,
                             ),
                           ),
                         ],
@@ -138,13 +147,11 @@ class _PlacementSprite extends StatelessWidget {
     required this.placement,
     required this.controller,
     required this.scenery,
-    required this.selected,
   });
 
   final EditorPlacement placement;
   final EditorController controller;
   final Scenery scenery;
-  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -158,7 +165,6 @@ class _PlacementSprite extends StatelessWidget {
       gridY: placement.gridY.toDouble(),
       footprintWidth: size.width.toDouble(),
       footprintHeight: size.height.toDouble(),
-      selected: selected,
     );
   }
 }
@@ -176,11 +182,11 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.ivory.withValues(alpha: .16)
-      ..strokeWidth = 1;
+      ..color = Colors.white.withValues(alpha: .34)
+      ..strokeWidth = 1.15;
     final border = Paint()
-      ..color = AppColors.brass.withValues(alpha: .55)
-      ..strokeWidth = 2;
+      ..color = Colors.white.withValues(alpha: .48)
+      ..strokeWidth = 1.2;
     for (var i = 0; i <= scenery.gridSize; i++) {
       canvas.drawLine(
         point(i.toDouble(), 0),
@@ -214,4 +220,98 @@ class _GridPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _GridPainter oldDelegate) =>
       oldDelegate.scenery != scenery;
+}
+
+class _PlacementGroundPainter extends CustomPainter {
+  const _PlacementGroundPainter(this.scenery, this.controller);
+
+  final Scenery scenery;
+  final EditorController controller;
+
+  List<Offset> _points(Rect rect) => [
+    rect.topLeft,
+    rect.topRight,
+    rect.bottomRight,
+    rect.bottomLeft,
+  ].map((point) => isoPoint(scenery, point.dx, point.dy)).toList();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final map = Rect.fromLTWH(
+      0,
+      0,
+      scenery.gridSize.toDouble(),
+      scenery.gridSize.toDouble(),
+    );
+    for (final placement in controller.placements) {
+      final footprint = controller.footprint(placement);
+      final area = Rect.fromLTWH(
+        placement.gridX.toDouble(),
+        placement.gridY.toDouble(),
+        footprint.width.toDouble(),
+        footprint.height.toDouble(),
+      );
+      final buffer = Rect.fromLTRB(
+        (area.left - 1).clamp(map.left, map.right),
+        (area.top - 1).clamp(map.top, map.bottom),
+        (area.right + 1).clamp(map.left, map.right),
+        (area.bottom + 1).clamp(map.top, map.bottom),
+      );
+      final outer = _points(buffer);
+      final inner = _points(area);
+      final deploymentRing = Path()
+        ..fillType = PathFillType.evenOdd
+        ..addPolygon(outer, true)
+        ..addPolygon(inner, true);
+      canvas.drawPath(
+        deploymentRing,
+        Paint()
+          ..color = Colors.white.withValues(alpha: .10)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawPath(
+        Path()..addPolygon(outer, true),
+        Paint()
+          ..color = Colors.white.withValues(alpha: .55)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.25,
+      );
+
+      final ground = Path()..addPolygon(inner, true);
+      canvas.drawPath(
+        ground,
+        Paint()
+          ..color = const Color(0xFF315D21).withValues(alpha: .34)
+          ..style = PaintingStyle.fill,
+      );
+      _drawGrass(canvas, area, ground);
+      if (placement.id == controller.selectedId) {
+        canvas.drawPath(
+          ground,
+          Paint()
+            ..color = Colors.white.withValues(alpha: .88)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+      }
+    }
+  }
+
+  void _drawGrass(Canvas canvas, Rect area, Path clip) {
+    canvas.save();
+    canvas.clipPath(clip);
+    final blade = Paint()
+      ..color = const Color(0xFFB0CF6A).withValues(alpha: .28)
+      ..strokeWidth = .8;
+    for (var x = area.left; x < area.right; x += .5) {
+      for (var y = area.top; y < area.bottom; y += .5) {
+        final center = isoPoint(scenery, x + .25, y + .25);
+        canvas.drawLine(center, center + const Offset(1.2, -3.2), blade);
+      }
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlacementGroundPainter oldDelegate) => true;
 }

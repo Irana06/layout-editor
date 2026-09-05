@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\BuildingLevelController;
+use App\Http\Controllers\BuildingUnlockRuleController;
 use App\Http\Controllers\SceneryController;
 use App\Http\Middleware\AuthenticateGoogleApi;
 use App\Http\Middleware\EnsureUserIsAdmin;
@@ -32,6 +33,7 @@ Route::prefix('v1')->group(function (): void {
             Route::get('/calibration', [BootstrapController::class, 'calibration']);
             Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update']);
             Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update']);
+            Route::patch('/unlock-rules', [BuildingUnlockRuleController::class, 'bulkUpdate']);
         });
     });
 });

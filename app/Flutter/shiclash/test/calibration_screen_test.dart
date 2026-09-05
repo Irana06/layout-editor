@@ -12,6 +12,7 @@ class FakeCalibrationApi extends CalibrationApi {
   final bool admin;
   bool failSave = false;
   Map<String, dynamic>? saved;
+  String? savedPath;
   final scenery = <String, dynamic>{
     'id': 1,
     'name': 'Classic',
@@ -34,6 +35,24 @@ class FakeCalibrationApi extends CalibrationApi {
       'sceneries': [scenery],
       'building_types': [
         {
+          'id': 9,
+          'name': 'Town Hall',
+          'category': 'town_hall',
+          'is_town_hall': true,
+          'default_grid_width': 4,
+          'default_grid_height': 4,
+          'levels': [
+            {
+              'id': 9,
+              'level': 1,
+              'image_url': 'https://example.com/town-hall.png',
+              'scale': 1,
+              'offset_x': 0,
+              'offset_y': 0,
+            },
+          ],
+        },
+        {
           'id': 1,
           'name': 'Cannon',
           'category': 'defensive',
@@ -51,6 +70,7 @@ class FakeCalibrationApi extends CalibrationApi {
           ],
         },
       ],
+      'unlock_rules': [],
     },
   });
   @override
@@ -59,7 +79,19 @@ class FakeCalibrationApi extends CalibrationApi {
     Map<String, dynamic>? body,
   }) async {
     if (failSave) throw const CalibrationException('Tidak dapat terhubung.', 0);
+    savedPath = path;
     saved = body;
+    if (path == 'admin/unlock-rules') {
+      return {
+        'unlockRules': [
+          for (final rule in body?['rules'] as List? ?? const [])
+            {
+              ...Map<String, dynamic>.from(rule as Map),
+              'th_level': body?['th_level'],
+            },
+        ],
+      };
+    }
     return {
       'scenery': {...scenery, ...?body},
     };
@@ -138,4 +170,58 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('admin configures availability, max level and count per TH', (
+    tester,
+  ) async {
+    final api = FakeCalibrationApi();
+    await open(tester, api);
+    await tester.tap(find.text('Aturan TH'));
+    await tester.pumpAndSettle();
+    expect(find.text('TH 1 · 0 jenis building'), findsOneWidget);
+    await tester.tap(find.text('Defensive'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(Switch).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Level maks.'), findsOneWidget);
+    expect(find.text('Jumlah maks.'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Simpan aturan TH'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Simpan aturan TH'));
+    await tester.pumpAndSettle();
+    expect(api.savedPath, 'admin/unlock-rules');
+    expect(api.saved?['th_level'], 1);
+    expect((api.saved?['rules'] as List).single['max_building_level'], 1);
+    expect((api.saved?['rules'] as List).single['max_count'], 1);
+  });
+
+  testWidgets('building picker groups assets and selects a named level', (
+    tester,
+  ) async {
+    final api = FakeCalibrationApi();
+    await open(tester, api);
+    await tester.tap(find.text('Building'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find
+          .ancestor(
+            of: find.text('Aset building & level'),
+            matching: find.byType(InkWell),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Pilih aset building'), findsOneWidget);
+    await tester.tap(find.text('Defensive'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cannon').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cannon · Level 1'));
+    await tester.pumpAndSettle();
+    expect(find.text('Cannon · Level 1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

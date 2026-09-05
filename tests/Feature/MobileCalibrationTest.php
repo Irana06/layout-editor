@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BuildingLevel;
 use App\Models\BuildingType;
+use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
 use App\Models\User;
 use Firebase\JWT\JWT;
@@ -113,5 +114,30 @@ class MobileCalibrationTest extends TestCase
         $this->assertSame($password, $user->fresh()->password);
         $this->assertDatabaseCount('users', 1);
         $this->assertTrue($verifiedAt->equalTo($user->fresh()->email_verified_at));
+    }
+
+    public function test_verified_admin_can_save_town_hall_rules_for_the_mobile_calibrator(): void
+    {
+        $cannon = BuildingType::create(['name' => 'Cannon', 'category' => 'defensive']);
+        BuildingLevel::create(['building_type_id' => $cannon->id, 'level' => 1, 'file_path' => 'cannon-1.png']);
+
+        $this->withToken($this->token())->patchJson('/api/v1/admin/unlock-rules', [
+            'th_level' => 1,
+            'rules' => [[
+                'building_type_id' => $cannon->id,
+                'max_building_level' => 1,
+                'max_count' => 2,
+            ]],
+        ])->assertOk()
+            ->assertJsonPath('unlockRules.0.building_type_id', $cannon->id)
+            ->assertJsonPath('unlockRules.0.max_building_level', 1)
+            ->assertJsonPath('unlockRules.0.max_count', 2);
+
+        $this->assertDatabaseHas(BuildingUnlockRule::class, [
+            'building_type_id' => $cannon->id,
+            'th_level' => 1,
+            'max_building_level' => 1,
+            'max_count' => 2,
+        ]);
     }
 }

@@ -90,6 +90,21 @@ class CalibrationApi {
       (await request('auth/me'))['data']['is_admin'] == true;
   Future<CatalogBootstrap> load() async =>
       CatalogBootstrap.fromJson(await request('admin/calibration'));
+
+  Future<List<BuildingUnlockRule>> saveUnlockRules(
+    int townHallLevel,
+    List<Map<String, dynamic>> rules,
+  ) async {
+    final result = await request(
+      'admin/unlock-rules',
+      body: {'th_level': townHallLevel, 'rules': rules},
+    );
+    return (result['unlockRules'] as List? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(BuildingUnlockRule.fromJson)
+        .toList(growable: false);
+  }
+
   void close() => _client.close();
 }
 

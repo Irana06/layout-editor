@@ -126,16 +126,6 @@ class _CalibrationCanvasState extends State<CalibrationCanvas> {
                               ),
                             ),
                           ),
-                          if (widget.level != null)
-                            BuildingSprite(
-                              scenery: s,
-                              level: widget.level!,
-                              gridX: gx,
-                              gridY: gy,
-                              footprintWidth: fw,
-                              footprintHeight: fh,
-                              opacity: widget.opacity,
-                            ),
                           Positioned.fill(
                             child: IgnorePointer(
                               child: CustomPaint(
@@ -149,6 +139,16 @@ class _CalibrationCanvasState extends State<CalibrationCanvas> {
                               ),
                             ),
                           ),
+                          if (widget.level != null)
+                            BuildingSprite(
+                              scenery: s,
+                              level: widget.level!,
+                              gridX: gx,
+                              gridY: gy,
+                              footprintWidth: fw,
+                              footprintHeight: fh,
+                              opacity: widget.opacity,
+                            ),
                         ],
                       ),
                     ),
@@ -221,6 +221,36 @@ class CalibrationGridPainter extends CustomPainter {
 
     if (showGrid) diamond(Rect.fromLTWH(0, 0, n, n), AppColors.brass, 3);
     if (footprint != null) {
+      final map = Rect.fromLTWH(0, 0, n, n);
+      final expanded = Rect.fromLTRB(
+        (footprint!.left - 1).clamp(map.left, map.right),
+        (footprint!.top - 1).clamp(map.top, map.bottom),
+        (footprint!.right + 1).clamp(map.left, map.right),
+        (footprint!.bottom + 1).clamp(map.top, map.bottom),
+      );
+      final outer = [
+        expanded.topLeft,
+        expanded.topRight,
+        expanded.bottomRight,
+        expanded.bottomLeft,
+      ].map((p) => isoPoint(scenery, p.dx, p.dy)).toList();
+      final inner = [
+        footprint!.topLeft,
+        footprint!.topRight,
+        footprint!.bottomRight,
+        footprint!.bottomLeft,
+      ].map((p) => isoPoint(scenery, p.dx, p.dy)).toList();
+      canvas.drawPath(
+        Path()
+          ..fillType = PathFillType.evenOdd
+          ..addPolygon(outer, true)
+          ..addPolygon(inner, true),
+        Paint()..color = Colors.white.withValues(alpha: .10),
+      );
+      canvas.drawPath(
+        Path()..addPolygon(inner, true),
+        Paint()..color = const Color(0xFF315D21).withValues(alpha: .34),
+      );
       diamond(footprint!, Colors.cyanAccent, 3);
       final center = isoPoint(
         scenery,
