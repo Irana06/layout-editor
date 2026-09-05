@@ -23,6 +23,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
   void initState() {
     super.initState();
     _catalog = widget.repository.load();
+    widget.repository.addListener(_retry);
+  }
+
+  @override
+  void dispose() {
+    widget.repository.removeListener(_retry);
+    super.dispose();
   }
 
   void _retry() => setState(() => _catalog = widget.repository.load());

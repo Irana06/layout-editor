@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
@@ -32,10 +34,12 @@ class CatalogApi {
   }
 }
 
-class CatalogRepository {
-  const CatalogRepository(this._api);
+class CatalogRepository extends ChangeNotifier {
+  CatalogRepository(this._api);
 
   final CatalogApi _api;
+
+  void invalidate() => notifyListeners();
 
   Future<CatalogBootstrap> load() async {
     return CatalogBootstrap.fromJson(await _api.getBootstrap());

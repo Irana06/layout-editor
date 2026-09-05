@@ -13,11 +13,21 @@ class BootstrapController extends Controller
 {
     public function __invoke(): JsonResponse
     {
+        return $this->catalog(false);
+    }
+
+    public function calibration(): JsonResponse
+    {
+        return $this->catalog(true);
+    }
+
+    private function catalog(bool $includeUncalibrated): JsonResponse
+    {
         $baseUrl = rtrim((string) config('app.url'), '/');
         $assetUrl = fn (string $path): string => $baseUrl.'/game/'.ltrim($path, '/');
 
         $sceneries = Scenery::query()
-            ->where('calibrated', true)
+            ->when(! $includeUncalibrated, fn ($query) => $query->where('calibrated', true))
             ->orderBy('name')
             ->get()
             ->map(fn (Scenery $scenery): array => [

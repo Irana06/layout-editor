@@ -1,0 +1,4 @@
+# Minimal OpenSSL configuration for ephemeral RSA keys in authentication tests.
+[req]
+distinguished_name = test_dn
+[test_dn]

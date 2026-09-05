@@ -5,6 +5,7 @@ import 'package:shiclash/core/update/update_service.dart';
 import 'package:shiclash/features/account/data/drive_backup_service.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
+import 'package:shiclash/features/calibration/presentation/calibration_screen.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
 
 class MoreScreen extends StatefulWidget {
@@ -202,6 +203,24 @@ class _MoreScreenState extends State<MoreScreen> {
         ),
         const SizedBox(height: 24),
         _accountCard(context),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Calibrator · Admin'),
+            subtitle: const Text(
+              'Atur grid scenery dan posisi building per level.',
+            ),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => CalibrationScreen(
+                  account: widget.account,
+                  repository: widget.repository,
+                ),
+              ),
+            ),
+          ),
+        ),
         const Card(
           child: ExpansionTile(
             title: Text('Mulai merancang'),

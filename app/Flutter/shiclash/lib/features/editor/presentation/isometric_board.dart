@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
+import 'package:shiclash/features/editor/presentation/building_sprite.dart';
 
 class IsometricBoard extends StatefulWidget {
   const IsometricBoard({required this.controller, super.key});
@@ -149,50 +150,15 @@ class _PlacementSprite extends StatelessWidget {
   Widget build(BuildContext context) {
     final level = controller.levelFor(placement);
     final size = controller.footprint(placement);
-    final centerX =
-        scenery.originX +
-        (placement.gridX - placement.gridY) * scenery.tileWidth / 2 +
-        (size.width - size.height) * scenery.tileWidth / 4;
-    final baseY =
-        scenery.originY +
-        (placement.gridX + placement.gridY) * scenery.tileHeight / 2 +
-        (size.width + size.height) * scenery.tileHeight / 4;
-    final imageWidth = math.max(
-      scenery.tileWidth *
-          math.max(size.width, size.height) *
-          (level?.scale ?? 1),
-      54.0,
-    );
-    final imageHeight = imageWidth * 1.35;
-
-    return Positioned(
-      left: centerX - imageWidth / 2 + (level?.offsetX ?? 0),
-      top: baseY - imageHeight + (level?.offsetY ?? 0),
-      width: imageWidth,
-      height: imageHeight,
-      child: IgnorePointer(
-        child: DecoratedBox(
-          decoration: selected
-              ? BoxDecoration(
-                  border: Border.all(color: AppColors.brass, width: 3),
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.brass.withValues(alpha: .35),
-                      blurRadius: 18,
-                    ),
-                  ],
-                )
-              : const BoxDecoration(),
-          child: Image.network(
-            level?.imageUrl ?? '',
-            fit: BoxFit.contain,
-            alignment: Alignment.bottomCenter,
-            errorBuilder: (_, _, _) =>
-                const Icon(Icons.home_work_outlined, color: AppColors.brass),
-          ),
-        ),
-      ),
+    if (level == null) return const SizedBox.shrink();
+    return BuildingSprite(
+      scenery: scenery,
+      level: level,
+      gridX: placement.gridX.toDouble(),
+      gridY: placement.gridY.toDouble(),
+      footprintWidth: size.width.toDouble(),
+      footprintHeight: size.height.toDouble(),
+      selected: selected,
     );
   }
 }
@@ -247,5 +213,5 @@ class _GridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _GridPainter oldDelegate) =>
-      oldDelegate.scenery.id != scenery.id;
+      oldDelegate.scenery != scenery;
 }

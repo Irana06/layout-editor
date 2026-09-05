@@ -18,6 +18,15 @@ class Scenery extends Model
         return ['calibrated' => 'boolean', 'locked' => 'boolean'];
     }
 
-    public function creator(): BelongsTo { return $this->belongsTo(User::class, 'created_by'); }
-    public function layouts(): HasMany { return $this->hasMany(Layout::class); }
+    /** @return BelongsTo<User, $this> */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return HasMany<Layout, $this> */
+    public function layouts(): HasMany
+    {
+        return $this->hasMany(Layout::class);
+    }
 }

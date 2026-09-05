@@ -1,6 +1,11 @@
 <?php
 
 use App\Http\Controllers\Api\V1\BootstrapController;
+use App\Http\Controllers\BuildingLevelController;
+use App\Http\Controllers\SceneryController;
+use App\Http\Middleware\AuthenticateGoogleApi;
+use App\Http\Middleware\EnsureUserIsAdmin;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
@@ -14,4 +19,19 @@ Route::prefix('v1')->group(function (): void {
     ]))->name('api.v1.index');
 
     Route::get('/bootstrap', BootstrapController::class)->name('api.v1.bootstrap');
+
+    Route::middleware(['throttle:60,1', AuthenticateGoogleApi::class])->group(function (): void {
+        Route::get('/auth/me', fn (Request $request) => response()->json([
+            'data' => [
+                'name' => $request->user()->name,
+                'email' => $request->user()->email,
+                'is_admin' => $request->user()->isAdmin(),
+            ],
+        ]));
+        Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function (): void {
+            Route::get('/calibration', [BootstrapController::class, 'calibration']);
+            Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update']);
+            Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update']);
+        });
+    });
 });

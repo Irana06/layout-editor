@@ -56,6 +56,8 @@ class Scenery {
     required this.originX,
     required this.originY,
     required this.gridSize,
+    this.locked = false,
+    this.calibrated = false,
   });
 
   factory Scenery.fromJson(Map<String, dynamic> json) => Scenery(
@@ -69,6 +71,8 @@ class Scenery {
     originX: _double(json['origin_x']),
     originY: _double(json['origin_y']),
     gridSize: _int(json['grid_n']),
+    locked: json['locked'] == true,
+    calibrated: json['calibrated'] == true,
   );
 
   final int id;
@@ -81,6 +85,31 @@ class Scenery {
   final double originX;
   final double originY;
   final int gridSize;
+  final bool locked;
+  final bool calibrated;
+
+  Scenery withCalibration(Map<String, dynamic> values) => Scenery(
+    id: id,
+    name: name,
+    imageUrl: imageUrl,
+    imageWidth: imageWidth,
+    imageHeight: imageHeight,
+    tileWidth: (values['tile_w'] as num).toDouble(),
+    tileHeight: (values['tile_h'] as num).toDouble(),
+    originX: (values['origin_x'] as num).toDouble(),
+    originY: (values['origin_y'] as num).toDouble(),
+    gridSize: (values['grid_n'] as num).toInt(),
+    locked: values['locked'] as bool? ?? locked,
+    calibrated: values['calibrated'] as bool? ?? calibrated,
+  );
+
+  Map<String, dynamic> calibrationValues() => {
+    'tile_w': tileWidth,
+    'tile_h': tileHeight,
+    'origin_x': originX,
+    'origin_y': originY,
+    'grid_n': gridSize,
+  };
 }
 
 class BuildingType {
@@ -159,6 +188,25 @@ class BuildingLevel {
   final double scale;
   final double offsetX;
   final double offsetY;
+
+  BuildingLevel withCalibration(Map<String, dynamic> values) => BuildingLevel(
+    id: id,
+    level: level,
+    imageUrl: imageUrl,
+    gridWidth: values['grid_width'] as int?,
+    gridHeight: values['grid_height'] as int?,
+    scale: (values['scale'] as num).toDouble(),
+    offsetX: (values['offset_x'] as num).toDouble(),
+    offsetY: (values['offset_y'] as num).toDouble(),
+  );
+
+  Map<String, dynamic> calibrationValues() => {
+    'grid_width': gridWidth,
+    'grid_height': gridHeight,
+    'scale': scale,
+    'offset_x': offsetX,
+    'offset_y': offsetY,
+  };
 }
 
 class BuildingUnlockRule {

@@ -126,6 +126,7 @@ class _AppShellState extends State<AppShell> {
     _account
       ..removeListener(_onAccountChanged)
       ..dispose();
+    _repository.dispose();
     _drafts.dispose();
     super.dispose();
   }

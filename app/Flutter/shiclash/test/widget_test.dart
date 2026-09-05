@@ -22,6 +22,17 @@ void main() {
     await tester.tap(find.text('Lainnya'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Panduan & informasi'), findsOneWidget);
+    expect(find.text('Calibrator · Admin'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Gerakan dan kontrol'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byType(IndexedStack),
+            matching: find.byType(Scrollable),
+          )
+          .last,
+    );
     await tester.tap(find.text('Gerakan dan kontrol'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.textContaining('Geser canvas untuk pan'), findsOneWidget);

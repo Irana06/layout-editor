@@ -29,6 +29,13 @@ class _EditorScreenState extends State<EditorScreen> {
   void initState() {
     super.initState();
     _catalog = _load();
+    widget.repository.addListener(_retry);
+  }
+
+  @override
+  void dispose() {
+    widget.repository.removeListener(_retry);
+    super.dispose();
   }
 
   Future<CatalogBootstrap> _load() async {
@@ -47,6 +54,7 @@ class _EditorScreenState extends State<EditorScreen> {
         builder: (context, snapshot) {
           if (snapshot.hasData && snapshot.data!.sceneries.isNotEmpty) {
             return _EditorWorkspace(
+              key: ObjectKey(snapshot.data),
               catalog: snapshot.data!,
               drafts: widget.drafts,
             );
@@ -70,7 +78,11 @@ class _EditorScreenState extends State<EditorScreen> {
 }
 
 class _EditorWorkspace extends StatefulWidget {
-  const _EditorWorkspace({required this.catalog, required this.drafts});
+  const _EditorWorkspace({
+    super.key,
+    required this.catalog,
+    required this.drafts,
+  });
 
   final CatalogBootstrap catalog;
   final DraftStore drafts;
@@ -106,6 +118,9 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     try {
       controller.restoreLayout(draft.layout);
       _restoreBlocked = false;
+      if (identical(widget.drafts.requested, draft)) {
+        widget.drafts.requested = null;
+      }
     } catch (_) {
       if (initial) _restoreBlocked = true;
       controller.status = 'Draft tidak cocok dengan katalog. Data tersimpan tetap dipertahankan.';

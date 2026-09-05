@@ -10,6 +10,7 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, dan simpan salinan.
 - **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
+- **Calibrator · Admin**: kalibrasi grid/origin scenery serta footprint, skala, dan offset building per level. Mendukung zoom/pan, drag langsung, input presisi, undo/redo, reset, salin antar-level, transparansi preview, grid lock, dan proteksi perubahan yang belum disimpan.
 - **Lainnya**: akun dan backup, panduan kontrol, tes koneksi server, salin alamat server, dan informasi aplikasi.
 - **Update**: cek GitHub Release secara otomatis saat aplikasi dibuka atau secara manual dari Lainnya. Tombol download membuka APK release; Android meminta persetujuan instalasi.
 
@@ -26,6 +27,8 @@ Penulisan dilakukan berurutan melalui file sementara, lalu mengganti file utama.
 Backup Google Drive memakai scope `drive.appdata` dan file `shiclash-backup-v1.json` di `appDataFolder`. Shiclash hanya dapat membaca file privat yang dibuatnya sendiri dan tidak mendapat akses ke file Drive pengguna lainnya. Restore selalu meminta konfirmasi karena mengganti draft dan koleksi lokal.
 
 Editor masih memerlukan koneksi ke Laravel untuk katalog dan gambar. Penyimpanan lokal belum berarti editor sepenuhnya offline.
+
+Calibrator mengirim Google ID token ke Laravel melalui HTTPS. Laravel memverifikasi tanda tangan, issuer, audience, masa berlaku, dan email terverifikasi sebelum mengecek `ADMIN_EMAILS`. Nilai yang berhasil disimpan langsung membuat Katalog dan Editor memuat ulang data positioning terbaru.
 
 ## Menjalankan Laravel API untuk emulator Android
 
