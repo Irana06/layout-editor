@@ -8,7 +8,10 @@ export type Placement = {
 
 export type Tool = 'select' | 'place';
 
-export type SelectionBox = { start: { gx: number; gy: number }; end: { gx: number; gy: number } } | null;
+export type SelectionBox = {
+    start: { gx: number; gy: number };
+    end: { gx: number; gy: number };
+} | null;
 
 export type EditorState = {
     sceneryId: number | null;
@@ -61,24 +64,53 @@ export type EditorAction =
     | { type: 'SET_SHARE'; shareEnabled: boolean; shareSlug: string | null }
     | { type: 'SET_LAYOUT_ID'; layoutId: string };
 
-function pushHistory(state: EditorState, placements: Placement[]): Pick<EditorState, 'placements' | 'history' | 'historyIndex'> {
-    const nextHistory = [...state.history.slice(0, state.historyIndex + 1), placements];
+function pushHistory(
+    state: EditorState,
+    placements: Placement[],
+): Pick<EditorState, 'placements' | 'history' | 'historyIndex'> {
+    const nextHistory = [
+        ...state.history.slice(0, state.historyIndex + 1),
+        placements,
+    ];
 
-    return { placements, history: nextHistory, historyIndex: nextHistory.length - 1 };
+    return {
+        placements,
+        history: nextHistory,
+        historyIndex: nextHistory.length - 1,
+    };
 }
 
-export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+export function editorReducer(
+    state: EditorState,
+    action: EditorAction,
+): EditorState {
     switch (action.type) {
         case 'SET_SCENERY':
             return { ...state, sceneryId: action.sceneryId };
         case 'SET_TH_LEVEL':
             return { ...state, thLevel: action.thLevel };
         case 'ARM':
-            return { ...state, armed: { buildingTypeId: action.buildingTypeId, level: action.level }, tool: 'place', selectedIds: [] };
+            return {
+                ...state,
+                armed: {
+                    buildingTypeId: action.buildingTypeId,
+                    level: action.level,
+                },
+                tool: 'place',
+                selectedIds: [],
+            };
         case 'DISARM':
-            return { ...state, armed: null, tool: state.tool === 'place' ? 'select' : state.tool };
+            return {
+                ...state,
+                armed: null,
+                tool: state.tool === 'place' ? 'select' : state.tool,
+            };
         case 'SET_TOOL':
-            return { ...state, tool: action.tool, armed: action.tool === 'place' ? state.armed : null };
+            return {
+                ...state,
+                tool: action.tool,
+                armed: action.tool === 'place' ? state.armed : null,
+            };
         case 'COMMIT_PLACEMENTS':
             return { ...state, ...pushHistory(state, action.placements) };
         case 'SELECT':
@@ -91,24 +123,38 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
             return { ...state, showFootprint: !state.showFootprint };
         case 'UNDO': {
             if (state.historyIndex <= 0) {
-return state;
-}
+                return state;
+            }
 
             const historyIndex = state.historyIndex - 1;
 
-            return { ...state, historyIndex, placements: state.history[historyIndex] };
+            return {
+                ...state,
+                historyIndex,
+                placements: state.history[historyIndex],
+            };
         }
         case 'REDO': {
             if (state.historyIndex >= state.history.length - 1) {
-return state;
-}
+                return state;
+            }
 
             const historyIndex = state.historyIndex + 1;
 
-            return { ...state, historyIndex, placements: state.history[historyIndex] };
+            return {
+                ...state,
+                historyIndex,
+                placements: state.history[historyIndex],
+            };
         }
         case 'SET_LAST_PICKED_LEVEL':
-            return { ...state, lastPickedLevel: { ...state.lastPickedLevel, [action.buildingTypeId]: action.level } };
+            return {
+                ...state,
+                lastPickedLevel: {
+                    ...state.lastPickedLevel,
+                    [action.buildingTypeId]: action.level,
+                },
+            };
         case 'LOAD_LAYOUT':
             return {
                 ...state,
@@ -130,7 +176,11 @@ return state;
         case 'SET_STATUS':
             return { ...state, status: action.status };
         case 'SET_SHARE':
-            return { ...state, shareEnabled: action.shareEnabled, shareSlug: action.shareSlug };
+            return {
+                ...state,
+                shareEnabled: action.shareEnabled,
+                shareSlug: action.shareSlug,
+            };
         case 'SET_LAYOUT_ID':
             return { ...state, layoutId: action.layoutId };
         default:
@@ -138,7 +188,9 @@ return state;
     }
 }
 
-export function initialEditorState(overrides: Partial<EditorState> = {}): EditorState {
+export function initialEditorState(
+    overrides: Partial<EditorState> = {},
+): EditorState {
     return {
         sceneryId: null,
         thLevel: 1,

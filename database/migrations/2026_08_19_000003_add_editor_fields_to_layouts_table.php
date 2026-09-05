@@ -15,10 +15,12 @@ return new class extends Migration
             $table->string('share_slug')->nullable()->unique()->after('is_public');
         });
     }
+
     public function down(): void
     {
         Schema::table('layouts', function (Blueprint $table): void {
-            $table->dropForeign(['scenery_id']); $table->dropUnique(['share_slug']);
+            $table->dropForeign(['scenery_id']);
+            $table->dropUnique(['share_slug']);
             $table->dropColumn(['scenery_id', 'data', 'is_public', 'share_slug']);
         });
     }

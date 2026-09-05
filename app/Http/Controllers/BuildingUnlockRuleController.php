@@ -31,7 +31,7 @@ class BuildingUnlockRuleController extends Controller
      */
     public function bulkUpdate(Request $request): JsonResponse
     {
-        $data = $request->validate([
+        $request->validate([
             'th_level' => ['required', 'integer', 'min:1', 'max:30'],
             'rules' => ['present', 'array'],
             'rules.*.building_type_id' => ['required', 'integer', 'distinct'],
@@ -39,7 +39,25 @@ class BuildingUnlockRuleController extends Controller
             'rules.*.max_count' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
 
-        $typeIds = collect($data['rules'])->pluck('building_type_id');
+        $rules = $request->collect('rules')->map(function (mixed $rule): array {
+            if (! is_array($rule)
+                || ! isset($rule['building_type_id'], $rule['max_building_level'])
+                || ! is_int($rule['building_type_id'])
+                || ! is_int($rule['max_building_level'])
+                || (isset($rule['max_count']) && ! is_int($rule['max_count']))) {
+                throw ValidationException::withMessages([
+                    'rules' => 'Format aturan building tidak valid.',
+                ]);
+            }
+
+            return [
+                'building_type_id' => $rule['building_type_id'],
+                'max_building_level' => $rule['max_building_level'],
+                'max_count' => $rule['max_count'] ?? null,
+            ];
+        });
+
+        $typeIds = $rules->pluck('building_type_id');
         $existingTypeIds = BuildingType::query()
             ->whereIn('id', $typeIds)
             ->pluck('id');
@@ -50,10 +68,10 @@ class BuildingUnlockRuleController extends Controller
             ]);
         }
 
-        $thLevel = $data['th_level'];
+        $thLevel = $request->integer('th_level');
         $now = now();
         BuildingUnlockRule::query()->upsert(
-            collect($data['rules'])->map(fn (array $rule): array => [
+            $rules->map(fn (array $rule): array => [
                 'building_type_id' => $rule['building_type_id'],
                 'th_level' => $thLevel,
                 'max_building_level' => $rule['max_building_level'],

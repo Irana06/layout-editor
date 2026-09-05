@@ -46,7 +46,12 @@ export type BuildingUnlockRule = {
     max_count: number | null;
 };
 
-export type LayoutPlacement = { building_type_id: number; level: number; gx: number; gy: number };
+export type LayoutPlacement = {
+    building_type_id: number;
+    level: number;
+    gx: number;
+    gy: number;
+};
 
 export type ServerLayout = {
     id: string;
@@ -61,7 +66,10 @@ export type ServerLayout = {
     updated_at: string;
 };
 
-export function levelFootprint(type: BuildingType, level: BuildingLevel): { width: number; height: number } {
+export function levelFootprint(
+    type: BuildingType,
+    level: BuildingLevel,
+): { width: number; height: number } {
     return {
         width: level.grid_width ?? type.default_grid_width,
         height: level.grid_height ?? type.default_grid_height,

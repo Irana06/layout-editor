@@ -26,14 +26,22 @@ export type ScreenPoint = { x: number; y: number };
 /** Grid-space tile coordinate (gx, gy) — integer tile indices, not necessarily clamped to the grid. */
 export type TilePoint = { gx: number; gy: number };
 
-export function isoToWorld(grid: GridCalibration, gx: number, gy: number): WorldPoint {
+export function isoToWorld(
+    grid: GridCalibration,
+    gx: number,
+    gy: number,
+): WorldPoint {
     return {
         x: grid.originX + (gx - gy) * (grid.tileW / 2),
         y: grid.originY + (gx + gy) * (grid.tileH / 2),
     };
 }
 
-export function worldToIso(grid: GridCalibration, wx: number, wy: number): TilePoint {
+export function worldToIso(
+    grid: GridCalibration,
+    wx: number,
+    wy: number,
+): TilePoint {
     const px = wx - grid.originX;
     const py = wy - grid.originY;
     const gx = (px / (grid.tileW / 2) + py / (grid.tileH / 2)) / 2;
@@ -42,7 +50,13 @@ export function worldToIso(grid: GridCalibration, wx: number, wy: number): TileP
     return { gx: Math.floor(gx), gy: Math.floor(gy) };
 }
 
-export function worldToScreen(camera: Camera, canvasWidth: number, canvasHeight: number, wx: number, wy: number): ScreenPoint {
+export function worldToScreen(
+    camera: Camera,
+    canvasWidth: number,
+    canvasHeight: number,
+    wx: number,
+    wy: number,
+): ScreenPoint {
     const s = camera.zoom;
 
     return {
@@ -51,7 +65,13 @@ export function worldToScreen(camera: Camera, canvasWidth: number, canvasHeight:
     };
 }
 
-export function screenToWorld(camera: Camera, canvasWidth: number, canvasHeight: number, sx: number, sy: number): WorldPoint {
+export function screenToWorld(
+    camera: Camera,
+    canvasWidth: number,
+    canvasHeight: number,
+    sx: number,
+    sy: number,
+): WorldPoint {
     const s = camera.zoom;
 
     return {
@@ -60,14 +80,28 @@ export function screenToWorld(camera: Camera, canvasWidth: number, canvasHeight:
     };
 }
 
-export function isoToScreen(grid: GridCalibration, camera: Camera, canvasWidth: number, canvasHeight: number, gx: number, gy: number): ScreenPoint {
+export function isoToScreen(
+    grid: GridCalibration,
+    camera: Camera,
+    canvasWidth: number,
+    canvasHeight: number,
+    gx: number,
+    gy: number,
+): ScreenPoint {
     const world = isoToWorld(grid, gx, gy);
 
     return worldToScreen(camera, canvasWidth, canvasHeight, world.x, world.y);
 }
 
 /** Four screen-space corners of tile (gx, gy), in draw order for a closed diamond path. */
-export function tileDiamondCorners(grid: GridCalibration, camera: Camera, canvasWidth: number, canvasHeight: number, gx: number, gy: number): ScreenPoint[] {
+export function tileDiamondCorners(
+    grid: GridCalibration,
+    camera: Camera,
+    canvasWidth: number,
+    canvasHeight: number,
+    gx: number,
+    gy: number,
+): ScreenPoint[] {
     return [
         isoToScreen(grid, camera, canvasWidth, canvasHeight, gx, gy),
         isoToScreen(grid, camera, canvasWidth, canvasHeight, gx + 1, gy),
@@ -85,14 +119,14 @@ export function canPlace(
     gridN: number,
 ): boolean {
     if (gx < 0 || gy < 0 || gx + width > gridN || gy + height > gridN) {
-return false;
-}
+        return false;
+    }
 
     for (let y = gy; y < gy + height; y++) {
         for (let x = gx; x < gx + width; x++) {
             if (occupied.has(tileKey(x, y))) {
-return false;
-}
+                return false;
+            }
         }
     }
 

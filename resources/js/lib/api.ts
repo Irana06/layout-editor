@@ -1,5 +1,8 @@
 function csrfToken(): string {
-    return document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    return (
+        document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.content ?? ''
+    );
 }
 
 type RouteLike = { url: string; method: string };
@@ -13,7 +16,10 @@ type RouteLike = { url: string; method: string };
  * lowercase. nginx only accepts uppercase method tokens and rejects the request with a
  * bare 400 before it ever reaches PHP. Uppercasing here keeps every verb safe.
  */
-export async function apiFetch<T>(route: RouteLike, body?: unknown): Promise<T> {
+export async function apiFetch<T>(
+    route: RouteLike,
+    body?: unknown,
+): Promise<T> {
     const isFormData = body instanceof FormData;
 
     const response = await fetch(route.url, {
@@ -23,7 +29,12 @@ export async function apiFetch<T>(route: RouteLike, body?: unknown): Promise<T> 
             'X-CSRF-TOKEN': csrfToken(),
             ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         },
-        body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+        body:
+            body === undefined
+                ? undefined
+                : isFormData
+                  ? body
+                  : JSON.stringify(body),
     });
 
     if (!response.ok) {
