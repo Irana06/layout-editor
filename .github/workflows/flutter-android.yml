@@ -11,15 +11,18 @@ on:
     branches:
       - master
       - flutter
+    tags:
+      - 'v*'
     paths:
       - 'app/Flutter/shiclash/**'
       - '.github/workflows/flutter-android.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-debug-apk:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     name: Analyze, test, and build APK
     runs-on: ubuntu-latest
     defaults:
@@ -68,3 +71,78 @@ jobs:
           path: app/Flutter/shiclash/build/app/outputs/flutter-apk/*-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+  publish-release-apk:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    name: Test, sign, and publish release APK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/Flutter/shiclash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies and verify source
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Validate release version and secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          API_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          APP_VERSION="$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)"
+          test "$GITHUB_REF_NAME" = "v$APP_VERSION"
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASSWORD"
+          test -n "$API_URL"
+
+      - name: Restore Android signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/shiclash-release.jks
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=shiclash-release.jks\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > android/key.properties
+
+      - name: Build signed release APK
+        env:
+          API_URL: ${{ vars.API_BASE_URL }}
+        run: |
+          flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
+          mv build/app/outputs/flutter-apk/app-release.apk \
+            "build/app/outputs/flutter-apk/shiclash-android-${GITHUB_REF_NAME}.apk"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "build/app/outputs/flutter-apk/shiclash-android-${GITHUB_REF_NAME}.apk" \
+            --title "Shiclash ${GITHUB_REF_NAME}" \
+            --generate-notes

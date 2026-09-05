@@ -134,6 +134,27 @@ class DraftStore extends ChangeNotifier {
     await _persist();
   }
 
+  Future<void> rename(String id, String title) async {
+    await ready;
+    final clean = title.trim();
+    if (clean.isEmpty || clean.length > 100) {
+      throw ArgumentError('Nama harus berisi 1–100 karakter');
+    }
+    _saved = _saved
+        .map(
+          (item) => item.id == id
+              ? LocalDraft(
+                  id: item.id,
+                  title: clean,
+                  layout: item.layout,
+                  updatedAt: DateTime.now(),
+                )
+              : item,
+        )
+        .toList();
+    await _persist();
+  }
+
   // Opening does not overwrite autosave until the editor validates the layout.
   LocalDraft? requested;
   void requestOpen(LocalDraft draft) {

@@ -1,4 +1,4 @@
-package com.example.shiclash
+package com.shiclash.editor
 
 import io.flutter.embedding.android.FlutterActivity
 

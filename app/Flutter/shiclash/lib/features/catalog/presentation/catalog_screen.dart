@@ -3,6 +3,7 @@ import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
+import 'package:shiclash/features/catalog/presentation/building_detail_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key, required this.repository});
@@ -16,6 +17,7 @@ class CatalogScreen extends StatefulWidget {
 class _CatalogScreenState extends State<CatalogScreen> {
   late Future<CatalogBootstrap> _catalog;
   int _selectedTh = 1;
+  String _query = '';
 
   @override
   void initState() {
@@ -42,6 +44,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
           return _CatalogView(
             catalog: snapshot.data!,
+            query: _query,
+            onSearch: (value) => setState(() => _query = value),
             selectedTh: _selectedTh,
             onThSelected: (level) => setState(() => _selectedTh = level),
             onRefresh: () async {
@@ -61,12 +65,16 @@ class _CatalogView extends StatelessWidget {
     required this.selectedTh,
     required this.onThSelected,
     required this.onRefresh,
+    required this.query,
+    required this.onSearch,
   });
 
   final CatalogBootstrap catalog;
   final int selectedTh;
   final ValueChanged<int> onThSelected;
   final Future<void> Function() onRefresh;
+  final String query;
+  final ValueChanged<String> onSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +82,7 @@ class _CatalogView extends StatelessWidget {
     final visibleBuildings = catalog.buildingTypes
         .where((type) {
           return !type.isTownHall &&
+              type.name.toLowerCase().contains(query.toLowerCase().trim()) &&
               catalog.maxLevelFor(type.id, selectedTh) > 0;
         })
         .toList(growable: false);
@@ -91,11 +100,23 @@ class _CatalogView extends StatelessWidget {
           SliverToBoxAdapter(
             child: _StudioHeader(buildings: visibleBuildings.length),
           ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+              child: TextField(
+                onChanged: onSearch,
+                decoration: const InputDecoration(
+                  hintText: 'Cari nama bangunan',
+                  prefixIcon: Icon(Icons.search),
+                ),
+              ),
+            ),
+          ),
           const SliverToBoxAdapter(child: SizedBox(height: 26)),
           const SliverToBoxAdapter(
             child: _SectionHeading(
               label: 'SCENERIES',
-              title: 'Pilih medan perang',
+              title: 'Kenali medan perang',
             ),
           ),
           SliverToBoxAdapter(child: _SceneryRail(sceneries: catalog.sceneries)),
@@ -146,6 +167,26 @@ class _CatalogView extends StatelessWidget {
                       return _BuildingCard(
                         building: building,
                         maxLevel: maxLevel,
+                        onTap: () {
+                          int? count;
+                          for (final rule in catalog.unlockRules) {
+                            if (rule.buildingTypeId == building.id &&
+                                rule.thLevel == selectedTh) {
+                              count = rule.maxCount;
+                            }
+                          }
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => BuildingDetailScreen(
+                                building: building,
+                                maxLevel: maxLevel,
+                                thLevel: selectedTh,
+                                maxCount: count,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -228,12 +269,12 @@ class _StudioHeader extends StatelessWidget {
             ),
             const SizedBox(height: 26),
             Text(
-              'Rancang base di mana saja.',
+              'Kenali setiap pertahanan.',
               style: Theme.of(context).textTheme.headlineLarge,
             ),
             const SizedBox(height: 8),
             Text(
-              'Katalog tersinkron dengan Laravel API. $buildings bangunan tersedia untuk level Town Hall aktif.',
+              '$buildings bangunan sesuai pencarian dan Town Hall aktif. Ketuk bangunan untuk melihat detail levelnya.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -461,42 +502,50 @@ class _CategoryHeading extends StatelessWidget {
 }
 
 class _BuildingCard extends StatelessWidget {
-  const _BuildingCard({required this.building, required this.maxLevel});
+  const _BuildingCard({
+    required this.building,
+    required this.maxLevel,
+    required this.onTap,
+  });
   final BuildingType building;
   final int maxLevel;
+  final VoidCallback onTap;
   @override
   Widget build(BuildContext context) {
     final level = building.thumbnailFor(maxLevel);
-    return Container(
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: AppColors.panel,
-        border: Border.all(color: AppColors.line),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        children: [
-          Expanded(
-            child: level == null
-                ? const Icon(
-                    Icons.question_mark_rounded,
-                    color: AppColors.muted,
-                  )
-                : _NetworkArt(url: level.imageUrl, fit: BoxFit.contain),
-          ),
-          const SizedBox(height: 7),
-          Text(
-            building.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            'hingga Lv$maxLevel',
-            style: const TextStyle(fontSize: 8, color: AppColors.muted),
-          ),
-        ],
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          border: Border.all(color: AppColors.line),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Column(
+          children: [
+            Expanded(
+              child: level == null
+                  ? const Icon(
+                      Icons.question_mark_rounded,
+                      color: AppColors.muted,
+                    )
+                  : _NetworkArt(url: level.imageUrl, fit: BoxFit.contain),
+            ),
+            const SizedBox(height: 7),
+            Text(
+              building.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'hingga Lv$maxLevel',
+              style: const TextStyle(fontSize: 8, color: AppColors.muted),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -527,7 +576,7 @@ class _EmptyBuildings extends StatelessWidget {
   const _EmptyBuildings();
   @override
   Widget build(BuildContext context) => const _EmptyMessage(
-    'Belum ada unlock rule untuk Town Hall ini. Atur melalui website admin.',
+    'Tidak ada bangunan yang cocok. Coba nama lain atau pilih Town Hall berbeda.',
   );
 }
 

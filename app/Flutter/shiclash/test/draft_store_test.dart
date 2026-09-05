@@ -82,4 +82,19 @@ void main() {
     ) as Map;
     expect((json['active'] as Map)['layout'], layout(1));
   });
+
+  test('rename persists without changing placement data', () async {
+    await store.autosave(layout(4));
+    await store.saveCopy('Original');
+    await store.rename(store.saved.single.id, '  War TH 10  ');
+    final reopened = DraftStore(directory: () async => directory);
+    await reopened.ready;
+    expect(reopened.saved.single.title, 'War TH 10');
+    expect(reopened.saved.single.layout, layout(4));
+    await expectLater(
+      store.rename(store.saved.single.id, '   '),
+      throwsArgumentError,
+    );
+    reopened.dispose();
+  });
 }
