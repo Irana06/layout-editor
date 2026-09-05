@@ -10,7 +10,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    await tester.pumpWidget(const ShiclashApp());
+    await tester.pumpWidget(const ShiclashApp(googleServicesEnabled: false));
 
     expect(find.text('Studio'), findsOneWidget);
     expect(find.text('Editor'), findsOneWidget);

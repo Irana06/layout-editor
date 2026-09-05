@@ -168,12 +168,43 @@ class DraftStore extends ChangeNotifier {
     await _persist();
   }
 
+  String exportDocument() {
+    return jsonEncode(_document());
+  }
+
+  Future<void> restoreDocument(String content) async {
+    await ready;
+    final decoded = jsonDecode(content);
+    if (decoded is! Map) {
+      throw const FormatException('Backup Google Drive tidak valid');
+    }
+    final document = Map<String, dynamic>.from(decoded);
+    if (document['version'] != 1 || document['saved'] is! List) {
+      throw const FormatException('Versi backup Google Drive tidak didukung');
+    }
+    final restoredActive = document['active'] == null
+        ? null
+        : LocalDraft.fromJson(
+            Map<String, dynamic>.from(document['active'] as Map),
+          );
+    final restoredSaved = (document['saved'] as List)
+        .map(
+          (item) => LocalDraft.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
+    active = restoredActive;
+    _saved = restoredSaved;
+    await _persist();
+  }
+
+  Map<String, dynamic> _document() => {
+    'version': 1,
+    'active': active?.toJson(),
+    'saved': _saved.map((item) => item.toJson()).toList(),
+  };
+
   Future<void> _persist() {
-    final content = jsonEncode({
-      'version': 1,
-      'active': active?.toJson(),
-      'saved': _saved.map((item) => item.toJson()).toList(),
-    });
+    final content = jsonEncode(_document());
     _pending++;
     _notify();
     final operation = _queue.then((_) async {

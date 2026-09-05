@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/core/update/update_service.dart';
+import 'package:shiclash/features/account/data/drive_backup_service.dart';
+import 'package:shiclash/features/account/data/google_account_controller.dart';
+import 'package:shiclash/features/account/presentation/account_gate.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/presentation/catalog_screen.dart';
 import 'package:shiclash/features/editor/presentation/editor_screen.dart';
@@ -10,7 +13,9 @@ import 'package:shiclash/features/studio/studio_screen.dart';
 import 'package:shiclash/features/studio/more_screen.dart';
 
 class ShiclashApp extends StatelessWidget {
-  const ShiclashApp({super.key});
+  const ShiclashApp({super.key, this.googleServicesEnabled = true});
+
+  final bool googleServicesEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +23,15 @@ class ShiclashApp extends StatelessWidget {
       title: 'Shiclash',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark,
-      home: const AppShell(),
+      home: AppShell(googleServicesEnabled: googleServicesEnabled),
     );
   }
 }
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  const AppShell({super.key, required this.googleServicesEnabled});
+
+  final bool googleServicesEnabled;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -36,10 +43,17 @@ class _AppShellState extends State<AppShell> {
   late final List<Widget> _pages;
   final DraftStore _drafts = DraftStore();
   final UpdateService _updates = UpdateService();
+  late final GoogleAccountController _account;
+  final DriveBackupService _drive = DriveBackupService();
+  late bool _continueOffline;
 
   @override
   void initState() {
     super.initState();
+    _continueOffline = !widget.googleServicesEnabled;
+    _account = GoogleAccountController(enabled: widget.googleServicesEnabled)
+      ..addListener(_onAccountChanged);
+    _account.initialize();
     _repository = CatalogRepository(CatalogApi());
     _pages = [
       StudioScreen(
@@ -50,9 +64,20 @@ class _AppShellState extends State<AppShell> {
       CatalogScreen(repository: _repository),
       EditorScreen(repository: _repository, drafts: _drafts),
       LayoutsScreen(store: _drafts, onOpen: () => setState(() => _index = 2)),
-      MoreScreen(repository: _repository, updates: _updates),
+      MoreScreen(
+        repository: _repository,
+        updates: _updates,
+        account: _account,
+        drive: _drive,
+        drafts: _drafts,
+        onOpenAccount: () => setState(() => _continueOffline = false),
+      ),
     ];
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+  }
+
+  void _onAccountChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _checkForUpdate() async {
@@ -98,12 +123,24 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _account
+      ..removeListener(_onAccountChanged)
+      ..dispose();
     _drafts.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_account.ready) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (!_continueOffline && !_account.signedIn) {
+      return AccountGate(
+        account: _account,
+        onContinueOffline: () => setState(() => _continueOffline = true),
+      );
+    }
     return PopScope(
       canPop: _index == 0,
       onPopInvokedWithResult: (didPop, result) {

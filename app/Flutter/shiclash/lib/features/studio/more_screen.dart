@@ -2,16 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/core/update/update_service.dart';
+import 'package:shiclash/features/account/data/drive_backup_service.dart';
+import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
+import 'package:shiclash/features/layouts/data/draft_store.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({
     super.key,
     required this.repository,
     required this.updates,
+    required this.account,
+    required this.drive,
+    required this.drafts,
+    required this.onOpenAccount,
   });
   final CatalogRepository repository;
   final UpdateService updates;
+  final GoogleAccountController account;
+  final DriveBackupService drive;
+  final DraftStore drafts;
+  final VoidCallback onOpenAccount;
   @override
   State<MoreScreen> createState() => _MoreScreenState();
 }
@@ -22,6 +33,105 @@ class _MoreScreenState extends State<MoreScreen> {
   bool _updateChecking = false;
   UpdateInfo? _update;
   String? _updateMessage;
+  bool _cloudBusy = false;
+  String? _cloudMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.account.addListener(_accountChanged);
+  }
+
+  void _accountChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.account.removeListener(_accountChanged);
+    super.dispose();
+  }
+
+  Future<void> _backup() async {
+    final account = widget.account.account;
+    if (account == null) return;
+    setState(() {
+      _cloudBusy = true;
+      _cloudMessage = null;
+    });
+    try {
+      await widget.drafts.ready;
+      final backup = await widget.drive.upload(
+        account,
+        widget.drafts.exportDocument(),
+      );
+      if (mounted) {
+        setState(
+          () => _cloudMessage = backup.modifiedAt == null
+              ? 'Backup Google Drive berhasil.'
+              : 'Backup berhasil diperbarui.',
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _cloudMessage = 'Backup gagal: ${_message(error)}');
+      }
+    } finally {
+      if (mounted) setState(() => _cloudBusy = false);
+    }
+  }
+
+  Future<void> _restore() async {
+    final account = widget.account.account;
+    if (account == null) return;
+    setState(() {
+      _cloudBusy = true;
+      _cloudMessage = null;
+    });
+    try {
+      final content = await widget.drive.download(account);
+      if (!mounted) return;
+      if (content == null) {
+        setState(() => _cloudMessage = 'Belum ada backup di Google Drive.');
+        return;
+      }
+      final approved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Pulihkan backup?'),
+          content: const Text(
+            'Draft dan koleksi lokal saat ini akan diganti dengan isi backup Google Drive.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Pulihkan'),
+            ),
+          ],
+        ),
+      );
+      if (approved != true) return;
+      await widget.drafts.restoreDocument(content);
+      if (mounted) {
+        setState(() => _cloudMessage = 'Backup berhasil dipulihkan ke HP.');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _cloudMessage = 'Pemulihan gagal: ${_message(error)}');
+      }
+    } finally {
+      if (mounted) setState(() => _cloudBusy = false);
+    }
+  }
+
+  String _message(Object error) {
+    final text = error.toString();
+    return text.replaceFirst(RegExp(r'^(Exception|StateError):\s*'), '');
+  }
 
   Future<void> _checkUpdate() async {
     setState(() {
@@ -91,15 +201,7 @@ class _MoreScreenState extends State<MoreScreen> {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 24),
-        const Card(
-          child: ListTile(
-            leading: Icon(Icons.phone_android),
-            title: Text('Penyimpanan perangkat'),
-            subtitle: Text(
-              'Autosave dan koleksi tersimpan lokal. Sinkronisasi akun belum tersedia.',
-            ),
-          ),
-        ),
+        _accountCard(context),
         const Card(
           child: ExpansionTile(
             title: Text('Mulai merancang'),
@@ -136,7 +238,7 @@ class _MoreScreenState extends State<MoreScreen> {
               Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Perubahan disimpan otomatis. Simpan salinan untuk memberi nama dan menaruh layout di koleksi. Dari Layouts, buka detail lalu pilih Buka di editor. Salinan tidak berubah ketika canvas diedit. Data dapat hilang jika data aplikasi dihapus; belum tersedia backup akun.',
+                  'Perubahan disimpan otomatis di HP. Simpan salinan untuk memberi nama dan menaruh layout di koleksi. Jika sudah masuk dengan Google, gunakan menu Akun & backup untuk mencadangkan atau memulihkan semua draft.',
                 ),
               ),
             ],
@@ -239,4 +341,83 @@ class _MoreScreenState extends State<MoreScreen> {
       ],
     ),
   );
+
+  Widget _accountCard(BuildContext context) {
+    final account = widget.account.account;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                if (account?.photoUrl != null)
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(account!.photoUrl!),
+                  )
+                else
+                  const CircleAvatar(child: Icon(Icons.person_outline)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        account?.displayName ?? 'Akun & backup',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      Text(
+                        account?.email ??
+                            'Masuk dengan Google untuk backup privat.',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Layout selalu tersimpan di HP. Backup Drive disimpan di ruang tersembunyi milik Shiclash dan tidak memberi akses ke file Drive lainnya.',
+            ),
+            if (_cloudMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(_cloudMessage!),
+            ],
+            const SizedBox(height: 12),
+            if (account == null)
+              FilledButton.icon(
+                onPressed: widget.onOpenAccount,
+                icon: const Icon(Icons.login),
+                label: const Text('Masuk / daftar Google'),
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: _cloudBusy ? null : _backup,
+                    icon: const Icon(Icons.cloud_upload_outlined),
+                    label: Text(_cloudBusy ? 'Memproses…' : 'Backup'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _cloudBusy ? null : _restore,
+                    icon: const Icon(Icons.cloud_download_outlined),
+                    label: const Text('Pulihkan'),
+                  ),
+                  TextButton.icon(
+                    onPressed: widget.account.busy
+                        ? null
+                        : widget.account.signOut,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Keluar'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

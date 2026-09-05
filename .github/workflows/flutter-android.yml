@@ -59,10 +59,15 @@ jobs:
         env:
           INPUT_API_URL: ${{ inputs.api_base_url }}
           REPOSITORY_API_URL: ${{ vars.API_BASE_URL }}
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          GOOGLE_IOS_CLIENT_ID: ${{ vars.GOOGLE_IOS_CLIENT_ID }}
         run: |
           API_URL="${INPUT_API_URL:-$REPOSITORY_API_URL}"
           API_URL="${API_URL:-http://10.0.2.2:8000/api/v1}"
-          flutter build apk --debug --split-per-abi --dart-define=API_BASE_URL="$API_URL"
+          flutter build apk --debug --split-per-abi \
+            --dart-define=API_BASE_URL="$API_URL" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID" \
+            --dart-define=GOOGLE_IOS_CLIENT_ID="$GOOGLE_IOS_CLIENT_ID"
 
       - name: Upload APKs
         uses: actions/upload-artifact@v4
@@ -110,6 +115,7 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           API_URL: ${{ vars.API_BASE_URL }}
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
         run: |
           APP_VERSION="$(awk '/^version:/{print $2}' pubspec.yaml | cut -d+ -f1)"
           test "$GITHUB_REF_NAME" = "v$APP_VERSION"
@@ -118,6 +124,7 @@ jobs:
           test -n "$KEY_ALIAS"
           test -n "$KEY_PASSWORD"
           test -n "$API_URL"
+          test -n "$GOOGLE_WEB_CLIENT_ID"
 
       - name: Restore Android signing key
         env:
@@ -133,8 +140,13 @@ jobs:
       - name: Build signed release APK
         env:
           API_URL: ${{ vars.API_BASE_URL }}
+          GOOGLE_WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+          GOOGLE_IOS_CLIENT_ID: ${{ vars.GOOGLE_IOS_CLIENT_ID }}
         run: |
-          flutter build apk --release --dart-define=API_BASE_URL="$API_URL"
+          flutter build apk --release \
+            --dart-define=API_BASE_URL="$API_URL" \
+            --dart-define=GOOGLE_WEB_CLIENT_ID="$GOOGLE_WEB_CLIENT_ID" \
+            --dart-define=GOOGLE_IOS_CLIENT_ID="$GOOGLE_IOS_CLIENT_ID"
           mv build/app/outputs/flutter-apk/app-release.apk \
             "build/app/outputs/flutter-apk/shiclash-android-${GITHUB_REF_NAME}.apk"
 

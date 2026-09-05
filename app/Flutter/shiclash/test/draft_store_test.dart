@@ -97,4 +97,30 @@ void main() {
     );
     reopened.dispose();
   });
+
+  test('Drive document round-trip replaces local drafts safely', () async {
+    await store.autosave(layout(5));
+    await store.saveCopy('Backup TH 10');
+    final backup = store.exportDocument();
+
+    await store.autosave(layout(9));
+    await store.restoreDocument(backup);
+
+    expect(store.active!.layout, layout(5));
+    expect(store.saved.single.title, 'Backup TH 10');
+    final document = jsonDecode(store.exportDocument()) as Map;
+    expect(document['version'], 1);
+  });
+
+  test(
+    'invalid Drive document is rejected without changing local data',
+    () async {
+      await store.autosave(layout(3));
+      await expectLater(
+        store.restoreDocument('{"version":99,"saved":[]}'),
+        throwsFormatException,
+      );
+      expect(store.active!.layout, layout(3));
+    },
+  );
 }
