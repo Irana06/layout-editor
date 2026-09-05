@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/core/update/update_service.dart';
+import 'package:shiclash/core/update/update_install_dialog.dart';
 import 'package:shiclash/features/account/data/drive_backup_service.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/account/presentation/account_gate.dart';
@@ -83,38 +84,13 @@ class _AppShellState extends State<AppShell> {
   Future<void> _checkForUpdate() async {
     try {
       final info = await _updates.check();
-      if (!mounted || !info.available) return;
+      if (!mounted || !info.available || !_updates.directInstallSupported) {
+        return;
+      }
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Update Shiclash tersedia'),
-          content: Text(
-            'Versi ${info.latestVersion} sudah tersedia. Versi di perangkat: ${info.currentVersion}.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Nanti'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                Navigator.pop(dialogContext);
-                try {
-                  await _updates.openDownload(info);
-                } catch (_) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Halaman update tidak dapat dibuka.'),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text('Download update'),
-            ),
-          ],
-        ),
+        barrierDismissible: false,
+        builder: (_) => UpdateInstallDialog(service: _updates, info: info),
       );
     } catch (_) {
       // Startup checks stay quiet when the device is offline or no release exists.

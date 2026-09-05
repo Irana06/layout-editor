@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/core/update/update_service.dart';
+import 'package:shiclash/core/update/update_install_dialog.dart';
 import 'package:shiclash/features/account/data/drive_backup_service.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
@@ -160,7 +161,15 @@ class _MoreScreenState extends State<MoreScreen> {
     final update = _update;
     if (update == null) return;
     try {
-      await widget.updates.openDownload(update);
+      final opened = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) =>
+            UpdateInstallDialog(service: widget.updates, info: update),
+      );
+      if (opened == true && mounted) {
+        setState(() => _updateMessage = 'Installer Android sudah dibuka.');
+      }
     } catch (error) {
       if (mounted) setState(() => _updateMessage = error.toString());
     }
@@ -290,7 +299,7 @@ class _MoreScreenState extends State<MoreScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Periksa GitHub Release untuk versi Shiclash terbaru.',
+                  'Periksa dan pasang versi Shiclash terbaru langsung dari aplikasi.',
                 ),
                 if (_updateMessage != null) ...[
                   const SizedBox(height: 8),
@@ -310,8 +319,8 @@ class _MoreScreenState extends State<MoreScreen> {
                     if (_update?.available == true)
                       FilledButton.icon(
                         onPressed: _downloadUpdate,
-                        icon: const Icon(Icons.download),
-                        label: const Text('Download update'),
+                        icon: const Icon(Icons.system_update_alt),
+                        label: const Text('Pasang update'),
                       ),
                   ],
                 ),
