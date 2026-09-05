@@ -1,0 +1,27 @@
+# Keep Railway's Laravel image small. These directories remain available in
+# the repository and local workspace; they are only excluded from the image.
+basecode_layout-editor/
+app/Flutter/
+
+# Legacy import sources. Laravel serves their normalized copies instead.
+public/game/buildings-source/
+public/game/scenery/
+
+# Ship only the currently supported scenery.
+public/game/sceneries/*
+!public/game/sceneries/classic.jpg
+
+# Local/development artifacts.
+.git/
+.github/
+.claude/
+.codex/
+.agents/
+node_modules/
+vendor/
+storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+public/hot
+
