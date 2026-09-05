@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Manages which buildings unlock at each Town Hall level, and to what level/count.
@@ -33,24 +34,36 @@ class BuildingUnlockRuleController extends Controller
         $data = $request->validate([
             'th_level' => ['required', 'integer', 'min:1', 'max:30'],
             'rules' => ['present', 'array'],
-            'rules.*.building_type_id' => ['required', 'integer', 'exists:building_types,id'],
+            'rules.*.building_type_id' => ['required', 'integer', 'distinct'],
             'rules.*.max_building_level' => ['required', 'integer', 'min:0', 'max:250'],
             'rules.*.max_count' => ['nullable', 'integer', 'min:0', 'max:1000'],
         ]);
 
-        $thLevel = $data['th_level'];
+        $typeIds = collect($data['rules'])->pluck('building_type_id');
+        $existingTypeIds = BuildingType::query()
+            ->whereIn('id', $typeIds)
+            ->pluck('id');
 
-        DB::transaction(function () use ($data, $thLevel): void {
-            foreach ($data['rules'] as $rule) {
-                BuildingUnlockRule::updateOrCreate(
-                    ['building_type_id' => $rule['building_type_id'], 'th_level' => $thLevel],
-                    [
-                        'max_building_level' => $rule['max_building_level'],
-                        'max_count' => $rule['max_count'] ?? null,
-                    ],
-                );
-            }
-        });
+        if ($existingTypeIds->count() !== $typeIds->count()) {
+            throw ValidationException::withMessages([
+                'rules' => 'Satu atau lebih building tidak ditemukan. Muat ulang katalog lalu coba lagi.',
+            ]);
+        }
+
+        $thLevel = $data['th_level'];
+        $now = now();
+        BuildingUnlockRule::query()->upsert(
+            collect($data['rules'])->map(fn (array $rule): array => [
+                'building_type_id' => $rule['building_type_id'],
+                'th_level' => $thLevel,
+                'max_building_level' => $rule['max_building_level'],
+                'max_count' => $rule['max_count'] ?? null,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])->all(),
+            ['building_type_id', 'th_level'],
+            ['max_building_level', 'max_count', 'updated_at'],
+        );
 
         return response()->json([
             'unlockRules' => BuildingUnlockRule::query()->where('th_level', $thLevel)->get(),

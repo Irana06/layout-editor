@@ -10,6 +10,7 @@ use App\Models\User;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use OpenSSLAsymmetricKey;
 use Tests\TestCase;
@@ -139,5 +140,28 @@ class MobileCalibrationTest extends TestCase
             'max_building_level' => 1,
             'max_count' => 2,
         ]);
+    }
+
+    public function test_mobile_rule_save_uses_a_constant_number_of_database_queries(): void
+    {
+        $types = collect(range(1, 40))->map(fn (int $number) => BuildingType::create([
+            'name' => "Building {$number}",
+            'category' => 'defensive',
+        ]));
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            $queries[] = $query->sql;
+        });
+
+        $this->withToken($this->token())->patchJson('/api/v1/admin/unlock-rules', [
+            'th_level' => 2,
+            'rules' => $types->map(fn (BuildingType $type): array => [
+                'building_type_id' => $type->id,
+                'max_building_level' => 1,
+                'max_count' => 1,
+            ])->all(),
+        ])->assertOk()->assertJsonCount(40, 'unlockRules');
+
+        $this->assertLessThanOrEqual(4, count($queries), implode("\n", $queries));
     }
 }
