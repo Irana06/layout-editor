@@ -9,7 +9,8 @@ on:
         type: string
   push:
     branches:
-      - main
+      - master
+      - flutter
     paths:
       - 'app/Flutter/shiclash/**'
       - '.github/workflows/flutter-android.yml'
