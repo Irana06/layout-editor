@@ -15,12 +15,14 @@ class BootstrapApiTest extends TestCase
 
     public function test_api_index_describes_available_endpoints(): void
     {
+        config()->set('app.url', 'https://layout-editor.test');
+
         $this->getJson('/api/v1')
             ->assertOk()
             ->assertJsonPath('name', 'Shiclash API')
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('version', 'v1')
-            ->assertJsonPath('endpoints.bootstrap', url('/api/v1/bootstrap'));
+            ->assertJsonPath('endpoints.bootstrap', 'https://layout-editor.test/api/v1/bootstrap');
     }
 
     public function test_mobile_bootstrap_returns_calibrated_catalog(): void

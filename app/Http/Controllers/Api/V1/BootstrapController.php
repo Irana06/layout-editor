@@ -8,13 +8,13 @@ use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class BootstrapController extends Controller
 {
-    public function __invoke(Request $request): JsonResponse
+    public function __invoke(): JsonResponse
     {
-        $assetUrl = fn (string $path): string => $request->getSchemeAndHttpHost().'/game/'.ltrim($path, '/');
+        $baseUrl = rtrim((string) config('app.url'), '/');
+        $assetUrl = fn (string $path): string => $baseUrl.'/game/'.ltrim($path, '/');
 
         $sceneries = Scenery::query()
             ->where('calibrated', true)

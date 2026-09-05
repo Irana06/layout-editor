@@ -9,7 +9,7 @@ Route::prefix('v1')->group(function (): void {
         'status' => 'ok',
         'version' => 'v1',
         'endpoints' => [
-            'bootstrap' => url('/api/v1/bootstrap'),
+            'bootstrap' => rtrim((string) config('app.url'), '/').'/api/v1/bootstrap',
         ],
     ]))->name('api.v1.index');
 
