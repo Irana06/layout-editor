@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
+import 'package:shiclash/features/editor/domain/wall_connections.dart';
 import 'package:shiclash/features/editor/presentation/building_sprite.dart';
 
 class IsometricBoard extends StatefulWidget {
