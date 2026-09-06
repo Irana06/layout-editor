@@ -222,7 +222,6 @@ class _MoreScreenState extends State<MoreScreen> {
               ),
             ),
           ),
-        ),
         const Card(
           child: ExpansionTile(
             title: Text('Mulai merancang'),
