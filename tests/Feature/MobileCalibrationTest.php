@@ -161,6 +161,20 @@ class MobileCalibrationTest extends TestCase
         ]);
     }
 
+    public function test_verified_admin_can_configure_whether_a_building_shows_a_deployment_ring(): void
+    {
+        $type = BuildingType::create(['name' => 'Hidden Tesla', 'category' => 'defensive', 'subfolder' => 'hidden-tesla']);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-types/{$type->id}", ['shows_deployment_ring' => false])
+            ->assertOk()
+            ->assertJsonPath('buildingType.shows_deployment_ring', false);
+
+        $this->getJson('/api/v1/bootstrap')
+            ->assertOk()
+            ->assertJsonPath('data.building_types.0.shows_deployment_ring', false);
+    }
+
     public function test_guest_and_non_admin_cannot_read_or_mutate_calibration(): void
     {
         $scenery = Scenery::create(['name' => 'Classic', 'file_path' => 'classic.png', 'image_width' => 1600, 'image_height' => 1200]);
@@ -267,5 +281,49 @@ class MobileCalibrationTest extends TestCase
         ])->assertOk()->assertJsonCount(40, 'unlockRules');
 
         $this->assertLessThanOrEqual(4, count($queries), implode("\n", $queries));
+    }
+
+    public function test_rules_saved_for_a_town_hall_are_copied_to_future_levels_without_overwriting_them(): void
+    {
+        $cannon = BuildingType::create(['name' => 'Cannon', 'category' => 'defensive']);
+        BuildingLevel::create(['building_type_id' => $cannon->id, 'level' => 1, 'file_path' => 'cannon-1.png']);
+        $townHall = BuildingType::create(['name' => 'Town Hall', 'category' => 'resource', 'is_town_hall' => true]);
+        foreach ([4, 5, 6] as $level) {
+            BuildingLevel::create(['building_type_id' => $townHall->id, 'level' => $level, 'file_path' => "th-{$level}.png"]);
+        }
+        BuildingUnlockRule::create([
+            'building_type_id' => $cannon->id,
+            'th_level' => 6,
+            'max_building_level' => 9,
+            'max_count' => 9,
+        ]);
+
+        $this->withToken($this->token())->patchJson('/api/v1/admin/unlock-rules', [
+            'th_level' => 4,
+            'rules' => [[
+                'building_type_id' => $cannon->id,
+                'max_building_level' => 3,
+                'max_count' => 2,
+            ]],
+        ])->assertOk();
+
+        $this->assertDatabaseHas('building_unlock_rules', [
+            'building_type_id' => $cannon->id,
+            'th_level' => 4,
+            'max_building_level' => 3,
+            'max_count' => 2,
+        ]);
+        $this->assertDatabaseHas('building_unlock_rules', [
+            'building_type_id' => $cannon->id,
+            'th_level' => 5,
+            'max_building_level' => 3,
+            'max_count' => 2,
+        ]);
+        $this->assertDatabaseHas('building_unlock_rules', [
+            'building_type_id' => $cannon->id,
+            'th_level' => 6,
+            'max_building_level' => 9,
+            'max_count' => 9,
+        ]);
     }
 }

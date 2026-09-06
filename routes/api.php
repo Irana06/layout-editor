@@ -36,6 +36,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function (): void {
             Route::get('/calibration', [BootstrapController::class, 'calibration']);
             Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update']);
+            Route::patch('/building-types/{buildingType}', [BuildingTypeController::class, 'update']);
             Route::patch('/building-types/{buildingType}/footprint', [BuildingTypeController::class, 'updateFootprint']);
             Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update']);
             Route::patch('/unlock-rules', [BuildingUnlockRuleController::class, 'bulkUpdate']);

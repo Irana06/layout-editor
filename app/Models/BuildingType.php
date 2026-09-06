@@ -8,12 +8,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class BuildingType extends Model
 {
     protected $fillable = [
-        'name', 'category', 'subfolder', 'is_town_hall', 'default_grid_width', 'default_grid_height',
+        'name', 'category', 'subfolder', 'is_town_hall', 'default_grid_width', 'default_grid_height', 'shows_deployment_ring',
     ];
 
     protected function casts(): array
     {
-        return ['is_town_hall' => 'boolean'];
+        return ['is_town_hall' => 'boolean', 'shows_deployment_ring' => 'boolean'];
     }
 
     /** @return HasMany<BuildingLevel, $this> */

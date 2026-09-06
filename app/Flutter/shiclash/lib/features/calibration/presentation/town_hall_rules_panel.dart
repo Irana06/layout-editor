@@ -122,8 +122,9 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
           },
       ]);
       if (!mounted) return;
+      final touchedTownHalls = saved.map((rule) => rule.thLevel).toSet();
       final otherRules = widget.catalog.unlockRules
-          .where((rule) => rule.thLevel != _townHallLevel)
+          .where((rule) => !touchedTownHalls.contains(rule.thLevel))
           .toList();
       widget.onSaved([...otherRules, ...saved]);
       setState(() {

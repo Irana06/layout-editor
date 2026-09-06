@@ -129,6 +129,7 @@ class BuildingType {
     required this.defaultGridWidth,
     required this.defaultGridHeight,
     required this.levels,
+    this.showsDeploymentRing = true,
   });
 
   factory BuildingType.fromJson(Map<String, dynamic> json) => BuildingType(
@@ -139,6 +140,10 @@ class BuildingType {
     isTownHall: json['is_town_hall'] == true || json['is_town_hall'] == 1,
     defaultGridWidth: _int(json['default_grid_width'], fallback: 1),
     defaultGridHeight: _int(json['default_grid_height'], fallback: 1),
+    showsDeploymentRing: json['shows_deployment_ring'] == null
+        ? _defaultDeploymentRing(json)
+        : json['shows_deployment_ring'] == true ||
+              json['shows_deployment_ring'] == 1,
     levels: _list(json['levels'])
         .map((item) => BuildingLevel.fromJson(item))
         .toList(growable: false),
@@ -151,6 +156,7 @@ class BuildingType {
   final bool isTownHall;
   final int defaultGridWidth;
   final int defaultGridHeight;
+  final bool showsDeploymentRing;
   final List<BuildingLevel> levels;
 
   BuildingLevel? thumbnailFor(int maxLevel) {
@@ -176,6 +182,7 @@ class BuildingType {
     isTownHall: isTownHall,
     defaultGridWidth: size,
     defaultGridHeight: size,
+    showsDeploymentRing: showsDeploymentRing,
     levels: levels
         .map((level) => level.withFootprint(width: null, height: null))
         .toList(growable: false),
@@ -189,7 +196,20 @@ class BuildingType {
     isTownHall: isTownHall,
     defaultGridWidth: defaultGridWidth,
     defaultGridHeight: defaultGridHeight,
+    showsDeploymentRing: showsDeploymentRing,
     levels: List.unmodifiable(values),
+  );
+
+  BuildingType withDeploymentRing(bool value) => BuildingType(
+    id: id,
+    name: name,
+    category: category,
+    subfolder: subfolder,
+    isTownHall: isTownHall,
+    defaultGridWidth: defaultGridWidth,
+    defaultGridHeight: defaultGridHeight,
+    showsDeploymentRing: value,
+    levels: levels,
   );
 }
 
@@ -316,4 +336,13 @@ double _double(Object? value, {double fallback = 0}) {
   if (value is num) return value.toDouble();
 
   return double.tryParse(value?.toString() ?? '') ?? fallback;
+}
+
+bool _defaultDeploymentRing(Map<String, dynamic> json) {
+  final category = (json['category']?.toString() ?? '').toLowerCase();
+  final subfolder = (json['subfolder']?.toString() ?? '')
+      .toLowerCase()
+      .replaceAll('_', '-')
+      .replaceAll(' ', '-');
+  return category != 'traps' && subfolder != 'hidden-tesla';
 }

@@ -17,11 +17,13 @@ class BuildingSprite extends StatelessWidget {
     required this.footprintWidth,
     required this.footprintHeight,
     this.opacity = 1,
+    this.tint,
   });
   final Scenery scenery;
   final BuildingLevel level;
   final double gridX, gridY, footprintWidth, footprintHeight;
   final double opacity;
+  final Color? tint;
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +48,18 @@ class BuildingSprite extends StatelessWidget {
           translation: const Offset(0, -1),
           child: Opacity(
             opacity: opacity,
-            child: Image.network(
-              level.imageUrl,
-              width: width,
-              fit: BoxFit.fitWidth,
-              errorBuilder: (_, _, _) => const SizedBox(
-                height: 80,
-                child: Icon(Icons.broken_image_outlined),
+            child: ColorFiltered(
+              colorFilter: tint == null
+                  ? const ColorFilter.mode(Colors.transparent, BlendMode.dst)
+                  : ColorFilter.mode(tint!, BlendMode.srcATop),
+              child: Image.network(
+                level.imageUrl,
+                width: width,
+                fit: BoxFit.fitWidth,
+                errorBuilder: (_, _, _) => const SizedBox(
+                  height: 80,
+                  child: Icon(Icons.broken_image_outlined),
+                ),
               ),
             ),
           ),

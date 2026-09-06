@@ -194,4 +194,31 @@ void main() {
     controller.redo();
     expect(controller.placements.single.gridX, 10);
   });
+
+  test('long-press drag previews movement and marks a collision invalid', () {
+    final cannon = controller.typeFor(2)!;
+    controller.arm(cannon);
+    controller.handleGridTap(2, 2);
+    final firstId = controller.placements.single.id;
+
+    controller.beginDragAt(2, 2);
+    controller.updateDragTarget(8, 8);
+    expect(controller.dragPreview?.placement.gridX, 8);
+    expect(controller.dragPreview?.placement.gridY, 8);
+    expect(controller.dragIsInvalid, isFalse);
+    controller.commitDrag();
+    expect(controller.placements.single.gridX, 8);
+
+    controller.arm(cannon);
+    controller.handleGridTap(16, 16);
+    final secondId = controller.placements.last.id;
+    controller.beginDragAt(16, 16);
+    controller.updateDragTarget(8, 8);
+
+    expect(controller.dragIsInvalid, isTrue);
+    expect(controller.invalidPlacementIds, contains(firstId));
+    expect(controller.invalidPlacementIds, isNot(contains(secondId)));
+    controller.cancelDrag();
+    expect(controller.placements.last.gridX, 16);
+  });
 }

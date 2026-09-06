@@ -23,6 +23,49 @@ class EditorPlacement {
     gridX: x,
     gridY: y,
   );
+
+  EditorPlacement withLevel(int value) => EditorPlacement(
+    id: id,
+    buildingTypeId: buildingTypeId,
+    level: value,
+    gridX: gridX,
+    gridY: gridY,
+  );
+}
+
+class EditorDragPreview {
+  const EditorDragPreview({
+    required this.placement,
+    this.sourceId,
+    this.grabOffsetX = 0,
+    this.grabOffsetY = 0,
+  });
+
+  final EditorPlacement placement;
+
+  /// Null means the preview came from the building library rather than an
+  /// already-placed object.
+  final int? sourceId;
+  final int grabOffsetX;
+  final int grabOffsetY;
+}
+
+class PaletteBuildingDrag {
+  const PaletteBuildingDrag({
+    required this.buildingTypeId,
+    required this.level,
+  });
+
+  final int buildingTypeId;
+  final int level;
+}
+
+class _PlacementCheck {
+  const _PlacementCheck(this.message, {this.collidingIds = const {}});
+
+  final String? message;
+  final Set<int> collidingIds;
+  bool get isValid => message == null;
 }
 
 class EditorController extends ChangeNotifier {
@@ -46,6 +89,9 @@ class EditorController extends ChangeNotifier {
   bool movingSelection = false;
   // The scenery remains clean by default; the line grid is an opt-in aid.
   bool showGrid = false;
+  EditorDragPreview? dragPreview;
+  Set<int> invalidPlacementIds = const {};
+  String? _dragError;
   String status = 'Pilih bangunan, lalu ketuk petak untuk menempatkan.';
 
   bool get canUndo => _historyIndex > 0;
@@ -120,6 +166,22 @@ class EditorController extends ChangeNotifier {
   EditorPlacement? get selectedPlacement {
     for (final placement in placements) {
       if (placement.id == selectedId) return placement;
+    }
+    return null;
+  }
+
+  bool get dragging => dragPreview != null;
+  bool get dragIsInvalid => dragPreview != null && _dragError != null;
+
+  EditorPlacement? placementAt(int x, int y) {
+    for (final placement in placements.reversed) {
+      final size = footprint(placement);
+      if (x >= placement.gridX &&
+          x < placement.gridX + size.width &&
+          y >= placement.gridY &&
+          y < placement.gridY + size.height) {
+        return placement;
+      }
     }
     return null;
   }
@@ -203,7 +265,27 @@ class EditorController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearSelection() {
+    selectedId = null;
+    movingSelection = false;
+    status = 'Mode pilih aktif.';
+    notifyListeners();
+  }
+
   void handleGridTap(int x, int y) {
+    final hit = placementAt(x, y);
+    // Selecting a placed object takes priority over an armed palette item.
+    // This avoids the confusing "petak sudah terisi" response when the user
+    // wants to inspect or drag a second copy of the same building.
+    if (hit != null) {
+      selectedId = hit.id;
+      armedBuildingTypeId = null;
+      armedLevel = null;
+      movingSelection = false;
+      status = '${typeFor(hit.buildingTypeId)?.name ?? 'Objek'} dipilih.';
+      notifyListeners();
+      return;
+    }
     if (movingSelection && selectedPlacement != null) {
       _moveSelected(x, y);
       return;
@@ -242,17 +324,7 @@ class EditorController extends ChangeNotifier {
   }
 
   void selectAt(int x, int y) {
-    EditorPlacement? hit;
-    for (final placement in placements.reversed) {
-      final size = footprint(placement);
-      if (x >= placement.gridX &&
-          x < placement.gridX + size.width &&
-          y >= placement.gridY &&
-          y < placement.gridY + size.height) {
-        hit = placement;
-        break;
-      }
-    }
+    final hit = placementAt(x, y);
     selectedId = hit?.id;
     status = hit == null
         ? 'Tidak ada objek pada petak $x, $y.'
@@ -266,6 +338,153 @@ class EditorController extends ChangeNotifier {
     armedLevel = null;
     movingSelection = true;
     status = 'Ketuk petak tujuan untuk memindahkan objek.';
+    notifyListeners();
+  }
+
+  /// Starts a long-press move. The finger's original offset inside a large
+  /// footprint is retained so the building does not jump below the pointer.
+  void beginDragAt(int x, int y) {
+    final hit = placementAt(x, y);
+    if (hit == null) return;
+    selectedId = hit.id;
+    armedBuildingTypeId = null;
+    armedLevel = null;
+    movingSelection = false;
+    dragPreview = EditorDragPreview(
+      placement: hit,
+      sourceId: hit.id,
+      grabOffsetX: x - hit.gridX,
+      grabOffsetY: y - hit.gridY,
+    );
+    invalidPlacementIds = const {};
+    _dragError = null;
+    status =
+        'Geser ${typeFor(hit.buildingTypeId)?.name ?? 'objek'} ke petak tujuan.';
+    notifyListeners();
+  }
+
+  /// Called when a library card enters the board's drag target.
+  void beginPaletteDrag(BuildingType type, {int? level}) {
+    final maxLevel = maxLevelFor(type);
+    if (maxLevel < 1) return;
+    final chosenLevel = type.isTownHall
+        ? maxLevel
+        : (level ?? maxLevel).clamp(1, maxLevel);
+    dragPreview = EditorDragPreview(
+      placement: EditorPlacement(
+        id: -1,
+        buildingTypeId: type.id,
+        level: chosenLevel,
+        gridX: 0,
+        gridY: 0,
+      ),
+    );
+    invalidPlacementIds = const {};
+    _dragError = null;
+    selectedId = null;
+    armedBuildingTypeId = null;
+    armedLevel = null;
+    movingSelection = false;
+    status = 'Taruh ${type.name} pada petak kosong.';
+    notifyListeners();
+  }
+
+  void updateDragTarget(int x, int y) {
+    final preview = dragPreview;
+    if (preview == null) return;
+    final candidate = preview.placement.moveTo(
+      x - preview.grabOffsetX,
+      y - preview.grabOffsetY,
+    );
+    final check = _checkPlacement(candidate, ignoringId: preview.sourceId);
+    dragPreview = EditorDragPreview(
+      placement: candidate,
+      sourceId: preview.sourceId,
+      grabOffsetX: preview.grabOffsetX,
+      grabOffsetY: preview.grabOffsetY,
+    );
+    invalidPlacementIds = check.collidingIds;
+    _dragError = check.message;
+    notifyListeners();
+  }
+
+  void commitDrag() {
+    final preview = dragPreview;
+    if (preview == null) return;
+    final check = _checkPlacement(
+      preview.placement,
+      ignoringId: preview.sourceId,
+    );
+    if (!check.isValid) {
+      status = check.message!;
+      _clearDrag();
+      notifyListeners();
+      return;
+    }
+    if (preview.sourceId == null) {
+      final placed = EditorPlacement(
+        id: _nextId++,
+        buildingTypeId: preview.placement.buildingTypeId,
+        level: preview.placement.level,
+        gridX: preview.placement.gridX,
+        gridY: preview.placement.gridY,
+      );
+      _commit([...placements, placed]);
+      selectedId = placed.id;
+      status =
+          '${typeFor(placed.buildingTypeId)?.name ?? 'Objek'} ditempatkan di ${placed.gridX}, ${placed.gridY}.';
+    } else {
+      _commit([
+        for (final item in placements)
+          if (item.id == preview.sourceId) preview.placement else item,
+      ]);
+      selectedId = preview.sourceId;
+      status =
+          'Objek dipindahkan ke ${preview.placement.gridX}, ${preview.placement.gridY}.';
+    }
+    _clearDrag();
+    notifyListeners();
+  }
+
+  void cancelDrag() {
+    if (dragPreview == null) return;
+    _clearDrag();
+    status = 'Pemindahan dibatalkan.';
+    notifyListeners();
+  }
+
+  void increaseSelectedLevel() => _changeSelectedLevel(1);
+  void decreaseSelectedLevel() => _changeSelectedLevel(-1);
+
+  void _changeSelectedLevel(int direction) {
+    final selected = selectedPlacement;
+    if (selected == null) return;
+    final type = typeFor(selected.buildingTypeId);
+    if (type == null || type.isTownHall) return;
+    final available =
+        type.levels
+            .map((item) => item.level)
+            .where((level) => level <= maxLevelFor(type))
+            .toSet()
+            .toList()
+          ..sort();
+    if (available.isEmpty) return;
+    final index = available.indexOf(selected.level);
+    if (index < 0) return;
+    final nextIndex = (index + direction).clamp(0, available.length - 1);
+    if (nextIndex == index) return;
+    final candidate = selected.withLevel(available[nextIndex]);
+    final check = _checkPlacement(candidate, ignoringId: selected.id);
+    if (!check.isValid) {
+      status = check.message!;
+      notifyListeners();
+      return;
+    }
+    _commit([
+      for (final item in placements)
+        if (item.id == selected.id) candidate else item,
+    ]);
+    status = '${type.name} diubah ke level ${candidate.level}.';
     notifyListeners();
   }
 
@@ -350,15 +569,38 @@ class EditorController extends ChangeNotifier {
   }
 
   bool _canOccupy(EditorPlacement candidate, {int? ignoringId}) {
+    final check = _checkPlacement(candidate, ignoringId: ignoringId);
+    if (check.isValid) return true;
+    status = check.message!;
+    notifyListeners();
+    return false;
+  }
+
+  _PlacementCheck _checkPlacement(
+    EditorPlacement candidate, {
+    int? ignoringId,
+  }) {
+    final type = typeFor(candidate.buildingTypeId);
+    if (type == null) return const _PlacementCheck('Building tidak tersedia.');
     final size = footprint(candidate);
     if (candidate.gridX < 0 ||
         candidate.gridY < 0 ||
         candidate.gridX + size.width > scenery.gridSize ||
         candidate.gridY + size.height > scenery.gridSize) {
-      status = 'Objek melewati batas map.';
-      notifyListeners();
-      return false;
+      return const _PlacementCheck('Objek melewati batas map.');
     }
+    if (ignoringId == null) {
+      final currentCount = placements
+          .where((item) => item.buildingTypeId == candidate.buildingTypeId)
+          .length;
+      final maxCount = maxCountFor(candidate.buildingTypeId);
+      if (maxCount == 0 || currentCount >= maxCount) {
+        return _PlacementCheck(
+          'Limit ${type.name} untuk TH $townHallLevel sudah tercapai.',
+        );
+      }
+    }
+    final collisions = <int>{};
     for (final item in placements) {
       if (item.id == ignoringId) continue;
       final other = footprint(item);
@@ -367,13 +609,21 @@ class EditorController extends ChangeNotifier {
           candidate.gridX + size.width > item.gridX &&
           candidate.gridY < item.gridY + other.height &&
           candidate.gridY + size.height > item.gridY;
-      if (overlaps) {
-        status = 'Petak tersebut sudah terisi.';
-        notifyListeners();
-        return false;
-      }
+      if (overlaps) collisions.add(item.id);
     }
-    return true;
+    if (collisions.isNotEmpty) {
+      return _PlacementCheck(
+        'Petak tersebut sudah terisi.',
+        collidingIds: Set.unmodifiable(collisions),
+      );
+    }
+    return const _PlacementCheck(null);
+  }
+
+  void _clearDrag() {
+    dragPreview = null;
+    invalidPlacementIds = const {};
+    _dragError = null;
   }
 
   void _commit(List<EditorPlacement> next) {

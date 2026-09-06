@@ -13,6 +13,7 @@ class CalibrationCanvas extends StatefulWidget {
     this.level,
     required this.editMode,
     required this.showGrid,
+    required this.showDeploymentRing,
     required this.opacity,
     required this.onDrag,
     required this.onStart,
@@ -21,7 +22,7 @@ class CalibrationCanvas extends StatefulWidget {
   final Scenery scenery;
   final BuildingType? type;
   final BuildingLevel? level;
-  final bool editMode, showGrid;
+  final bool editMode, showGrid, showDeploymentRing;
   final double opacity;
   final ValueChanged<Offset> onDrag;
   final VoidCallback onStart, onEnd;
@@ -132,6 +133,7 @@ class _CalibrationCanvasState extends State<CalibrationCanvas> {
                                 painter: CalibrationGridPainter(
                                   s,
                                   showGrid: widget.showGrid,
+                                  showDeploymentRing: widget.showDeploymentRing,
                                   footprint: widget.level == null
                                       ? null
                                       : Rect.fromLTWH(gx, gy, fw, fh),
@@ -176,10 +178,12 @@ class CalibrationGridPainter extends CustomPainter {
   const CalibrationGridPainter(
     this.scenery, {
     required this.showGrid,
+    required this.showDeploymentRing,
     this.footprint,
   });
   final Scenery scenery;
   final bool showGrid;
+  final bool showDeploymentRing;
   final Rect? footprint;
 
   @override
@@ -240,13 +244,22 @@ class CalibrationGridPainter extends CustomPainter {
         footprint!.bottomRight,
         footprint!.bottomLeft,
       ].map((p) => isoPoint(scenery, p.dx, p.dy)).toList();
-      canvas.drawPath(
-        Path()
-          ..fillType = PathFillType.evenOdd
-          ..addPolygon(outer, true)
-          ..addPolygon(inner, true),
-        Paint()..color = Colors.white.withValues(alpha: .10),
-      );
+      if (showDeploymentRing) {
+        canvas.drawPath(
+          Path()
+            ..fillType = PathFillType.evenOdd
+            ..addPolygon(outer, true)
+            ..addPolygon(inner, true),
+          Paint()..color = Colors.white.withValues(alpha: .10),
+        );
+        canvas.drawPath(
+          Path()..addPolygon(outer, true),
+          Paint()
+            ..color = Colors.white.withValues(alpha: .55)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.25,
+        );
+      }
       canvas.drawPath(
         Path()..addPolygon(inner, true),
         Paint()..color = const Color(0xFF315D21).withValues(alpha: .34),

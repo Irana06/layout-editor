@@ -120,6 +120,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     return {
       ...level.visualCalibrationValues(),
       'grid_size': type.defaultGridWidth,
+      'shows_deployment_ring': type.showsDeploymentRing,
     };
   }
 
@@ -194,6 +195,17 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         final originalLevel = _level!;
         final footprintSize = _draftFootprintSize();
         var updatedType = originalType;
+        final showsRing =
+            draft.values['shows_deployment_ring'] as bool? ??
+            originalType.showsDeploymentRing;
+
+        if (showsRing != originalType.showsDeploymentRing) {
+          await _api.request(
+            'admin/building-types/${originalType.id}',
+            body: {'shows_deployment_ring': showsRing},
+          );
+          updatedType = updatedType.withDeploymentRing(showsRing);
+        }
 
         if (originalType.defaultGridWidth != footprintSize ||
             originalType.defaultGridHeight != footprintSize) {
@@ -516,6 +528,11 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                         level: _building ? _previewLevel() : null,
                         editMode: _edit && !_locked && !_saving,
                         showGrid: _grid,
+                        showDeploymentRing: _building
+                            ? (_draft!.values['shows_deployment_ring']
+                                      as bool? ??
+                                  _type!.showsDeploymentRing)
+                            : true,
                         opacity: _opacity,
                         onDrag: _drag,
                         onStart: _draft!.beginGesture,
@@ -575,6 +592,21 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                       min: .1,
                       max: 1,
                       onChanged: (v) => setState(() => _opacity = v),
+                    ),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value:
+                          _draft!.values['shows_deployment_ring'] as bool? ??
+                          _type!.showsDeploymentRing,
+                      onChanged: _saving
+                          ? null
+                          : (value) => _draft!.change({
+                              'shows_deployment_ring': value,
+                            }),
+                      title: const Text('Ring deployment'),
+                      subtitle: const Text(
+                        'Tampilkan area putih satu tile di luar footprint. Matikan untuk traps dan Hidden Tesla.',
+                      ),
                     ),
                   ],
                   if (_locked)

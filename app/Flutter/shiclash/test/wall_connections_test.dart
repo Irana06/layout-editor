@@ -78,7 +78,7 @@ void main() {
     expect(index.forwardConnections, hasLength(4));
   });
 
-  test('does not bridge a different wall level or diagonal tile', () {
+  test('bridges mixed wall levels but ignores diagonal tiles', () {
     const source = EditorPlacement(
       id: 1,
       buildingTypeId: 1,
@@ -104,8 +104,9 @@ void main() {
       ),
     ]);
 
-    expect(index.connectionsFor(source).hasAny, isFalse);
-    expect(index.forwardConnections, isEmpty);
+    expect(index.connectionsFor(source).east, isTrue);
+    expect(index.connectionsFor(source).south, isFalse);
+    expect(index.forwardConnections, hasLength(1));
   });
 
   test('ignores non-wall buildings', () {

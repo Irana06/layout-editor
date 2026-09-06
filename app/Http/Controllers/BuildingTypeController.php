@@ -17,6 +17,7 @@ class BuildingTypeController extends Controller
             'subfolder' => ['sometimes', 'nullable', 'string', 'max:120'],
             'default_grid_width' => ['sometimes', 'integer', 'min:1', 'max:20'],
             'default_grid_height' => ['sometimes', 'integer', 'min:1', 'max:20'],
+            'shows_deployment_ring' => ['sometimes', 'boolean'],
         ]);
 
         $buildingType->update($data);
