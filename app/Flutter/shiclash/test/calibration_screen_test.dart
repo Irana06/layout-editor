@@ -313,6 +313,10 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
+    // The calibration save bar is fixed at the bottom of the screen. Move the
+    // whole control clear of that bar before tapping its InkWell.
+    await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+    await tester.pumpAndSettle();
     await tester.tap(
       find
           .ancestor(
