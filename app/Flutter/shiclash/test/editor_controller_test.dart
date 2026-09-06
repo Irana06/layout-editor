@@ -164,9 +164,12 @@ void main() {
     controller.handleGridTap(4, 4);
 
     expect(controller.placements, hasLength(1));
-    expect(controller.status, contains('sudah terisi'));
+    expect(controller.selectedId, controller.placements.single.id);
+    expect(controller.status, contains('dipilih'));
 
+    controller.arm(controller.typeFor(2)!);
     controller.handleGridTap(8, 8);
+    controller.arm(controller.typeFor(2)!);
     controller.handleGridTap(14, 14);
 
     expect(controller.placements, hasLength(2));

@@ -106,7 +106,9 @@ void main() {
 
     expect(index.connectionsFor(source).east, isTrue);
     expect(index.connectionsFor(source).south, isFalse);
-    expect(index.forwardConnections, hasLength(1));
+    // The level-12 neighbour is joined to the diagonal level-13 piece too;
+    // both are valid cardinal wall links after level-independent ring joining.
+    expect(index.forwardConnections, hasLength(2));
   });
 
   test('ignores non-wall buildings', () {
