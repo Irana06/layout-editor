@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
-import 'package:shiclash/features/editor/domain/wall_connections.dart';
 import 'package:shiclash/features/editor/presentation/building_sprite.dart';
 
 class IsometricBoard extends StatefulWidget {
@@ -308,28 +307,25 @@ class _PlacementGroundPainter extends CustomPainter {
       scenery.gridSize.toDouble(),
       scenery.gridSize.toDouble(),
     );
+    final ringCells = _deploymentRingCells(map, controller.placements);
+    _drawDeploymentRing(canvas, ringCells);
     for (final placement in controller.placements) {
       _drawPlacement(
         canvas,
-        map,
         placement,
         invalid: controller.invalidPlacementIds.contains(placement.id),
       );
     }
-    final walls = WallConnectionIndex(
-      controller.placements,
-      controller.typeFor,
-    );
-    for (final connection in walls.forwardConnections) {
-      final type = controller.typeFor(connection.from.buildingTypeId);
-      if (type?.showsDeploymentRing != true) continue;
-      _drawWallRingLink(canvas, connection.from, connection.to);
-    }
     final preview = controller.dragPreview;
     if (preview != null) {
+      final previewRing = _deploymentRingCells(map, [preview.placement]);
+      _drawDeploymentRing(
+        canvas,
+        previewRing,
+        invalid: controller.dragIsInvalid,
+      );
       _drawPlacement(
         canvas,
-        map,
         preview.placement,
         invalid: controller.dragIsInvalid,
         preview: true,
@@ -339,14 +335,12 @@ class _PlacementGroundPainter extends CustomPainter {
 
   void _drawPlacement(
     Canvas canvas,
-    Rect map,
     EditorPlacement placement, {
     required bool invalid,
     bool preview = false,
   }) {
     final type = controller.typeFor(placement.buildingTypeId);
     final isWall = isWallBuilding(type);
-    final showRing = type?.showsDeploymentRing ?? true;
     final footprint = controller.footprint(placement);
     final area = Rect.fromLTWH(
       placement.gridX.toDouble(),
@@ -354,37 +348,7 @@ class _PlacementGroundPainter extends CustomPainter {
       footprint.width.toDouble(),
       footprint.height.toDouble(),
     );
-    final buffer = Rect.fromLTRB(
-      (area.left - 1).clamp(map.left, map.right),
-      (area.top - 1).clamp(map.top, map.bottom),
-      (area.right + 1).clamp(map.left, map.right),
-      (area.bottom + 1).clamp(map.top, map.bottom),
-    );
     final inner = _points(area);
-    if (showRing) {
-      final outer = _points(buffer);
-      final deploymentRing = Path()
-        ..fillType = PathFillType.evenOdd
-        ..addPolygon(outer, true)
-        ..addPolygon(inner, true);
-      canvas.drawPath(
-        deploymentRing,
-        Paint()
-          ..color = invalid
-              ? AppColors.danger.withValues(alpha: .15)
-              : Colors.white.withValues(alpha: .10)
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawPath(
-        Path()..addPolygon(outer, true),
-        Paint()
-          ..color = invalid
-              ? AppColors.danger.withValues(alpha: .86)
-              : Colors.white.withValues(alpha: .55)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.25,
-      );
-    }
 
     final ground = Path()..addPolygon(inner, true);
     canvas.drawPath(
@@ -396,17 +360,6 @@ class _PlacementGroundPainter extends CustomPainter {
         ..style = PaintingStyle.fill,
     );
     _drawGrass(canvas, area, ground);
-    if (showRing && isWall) {
-      canvas.drawPath(
-        ground,
-        Paint()
-          ..color = invalid
-              ? AppColors.danger.withValues(alpha: .88)
-              : Colors.white.withValues(alpha: .78)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.25,
-      );
-    }
     if (invalid || (!preview && placement.id == controller.selectedId)) {
       canvas.drawPath(
         ground,
@@ -420,30 +373,59 @@ class _PlacementGroundPainter extends CustomPainter {
     }
   }
 
-  void _drawWallRingLink(
-    Canvas canvas,
-    EditorPlacement from,
-    EditorPlacement to,
+  Set<String> _deploymentRingCells(
+    Rect map,
+    Iterable<EditorPlacement> placements,
   ) {
-    final a = isoPoint(
-      scenery,
-      from.gridX.toDouble() + .5,
-      from.gridY.toDouble() + .5,
-    );
-    final b = isoPoint(
-      scenery,
-      to.gridX.toDouble() + .5,
-      to.gridY.toDouble() + .5,
-    );
-    final delta = b - a;
-    canvas.drawLine(
-      a + delta * .18,
-      b - delta * .18,
-      Paint()
-        ..color = Colors.white.withValues(alpha: .7)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.25,
-    );
+    final cells = <String>{};
+    for (final placement in placements) {
+      final type = controller.typeFor(placement.buildingTypeId);
+      if (type?.showsDeploymentRing != true) continue;
+      final footprint = controller.footprint(placement);
+      final left = math.max(0, placement.gridX - 1).toInt();
+      final top = math.max(0, placement.gridY - 1).toInt();
+      final right = math.min(map.right.toInt(), placement.gridX + footprint.width + 1);
+      final bottom = math.min(map.bottom.toInt(), placement.gridY + footprint.height + 1);
+      for (var x = left; x < right; x++) {
+        for (var y = top; y < bottom; y++) {
+          cells.add('$x:$y');
+        }
+      }
+    }
+    return cells;
+  }
+
+  void _drawDeploymentRing(
+    Canvas canvas,
+    Set<String> cells, {
+    bool invalid = false,
+  }) {
+    bool contains(int x, int y) => cells.contains('$x:$y');
+    final fill = Paint()
+      ..color = invalid
+          ? AppColors.danger.withValues(alpha: .15)
+          : Colors.white.withValues(alpha: .10)
+      ..style = PaintingStyle.fill;
+    final outline = Paint()
+      ..color = invalid
+          ? AppColors.danger.withValues(alpha: .86)
+          : Colors.white.withValues(alpha: .55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.25;
+    for (final key in cells) {
+      final parts = key.split(':');
+      final x = int.parse(parts.first);
+      final y = int.parse(parts.last);
+      final top = isoPoint(scenery, x.toDouble(), y.toDouble());
+      final right = isoPoint(scenery, x + 1.0, y.toDouble());
+      final bottom = isoPoint(scenery, x + 1.0, y + 1.0);
+      final left = isoPoint(scenery, x.toDouble(), y + 1.0);
+      canvas.drawPath(Path()..addPolygon([top, right, bottom, left], true), fill);
+      if (!contains(x, y - 1)) canvas.drawLine(top, right, outline);
+      if (!contains(x + 1, y)) canvas.drawLine(right, bottom, outline);
+      if (!contains(x, y + 1)) canvas.drawLine(bottom, left, outline);
+      if (!contains(x - 1, y)) canvas.drawLine(left, top, outline);
+    }
   }
 
   void _drawGrass(Canvas canvas, Rect area, Path clip) {

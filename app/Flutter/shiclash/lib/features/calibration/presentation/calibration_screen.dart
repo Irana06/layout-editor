@@ -36,7 +36,6 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   int _section = 0;
   bool _loading = true, _saving = false;
   bool _edit = false, _grid = true;
-  double _opacity = .8;
   String? _error, _status;
   bool _needsLogin = false;
 
@@ -533,7 +532,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                                       as bool? ??
                                   _type!.showsDeploymentRing)
                             : true,
-                        opacity: _opacity,
+                        opacity: .8,
                         onDrag: _drag,
                         onStart: _draft!.beginGesture,
                         onEnd: _draft!.endGesture,
@@ -584,30 +583,6 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                   ),
                   if (_building) ...[
                     const SizedBox(height: 8),
-                    const Text(
-                      'Transparansi building · garis biru menandai footprint',
-                    ),
-                    Slider(
-                      value: _opacity,
-                      min: .1,
-                      max: 1,
-                      onChanged: (v) => setState(() => _opacity = v),
-                    ),
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      value:
-                          _draft!.values['shows_deployment_ring'] as bool? ??
-                          _type!.showsDeploymentRing,
-                      onChanged: _saving
-                          ? null
-                          : (value) => _draft!.change({
-                              'shows_deployment_ring': value,
-                            }),
-                      title: const Text('Ring deployment'),
-                      subtitle: const Text(
-                        'Tampilkan area putih satu tile di luar footprint. Matikan untuk traps dan Hidden Tesla.',
-                      ),
-                    ),
                   ],
                   if (_locked)
                     const Padding(
@@ -623,6 +598,22 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                       child: _fields(),
                     ),
                   ),
+                  if (_building)
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value:
+                          _draft!.values['shows_deployment_ring'] as bool? ??
+                          _type!.showsDeploymentRing,
+                      onChanged: _saving
+                          ? null
+                          : (value) => _draft!.change({
+                              'shows_deployment_ring': value,
+                            }),
+                      title: const Text('Ring deployment'),
+                      subtitle: const Text(
+                        'Tampilkan area putih satu tile di luar footprint. Matikan untuk traps dan Hidden Tesla.',
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
