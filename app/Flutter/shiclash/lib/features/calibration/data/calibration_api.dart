@@ -58,7 +58,7 @@ class CalibrationApi {
       }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         final message = switch (response.statusCode) {
-          401 => 'Sesi Google berakhir. Login kembali untuk melanjutkan; perubahanmu tetap ada.',
+          401 => 'Sesi Shiclash berakhir. Login kembali untuk melanjutkan; perubahanmu tetap ada.',
           403 => 'Akun ini belum memiliki akses admin.',
           404 => 'Calibrator belum tersedia di server atau data sudah dihapus. Muat ulang.',
           429 => 'Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.',

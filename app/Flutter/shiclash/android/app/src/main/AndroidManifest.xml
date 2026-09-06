@@ -4,6 +4,7 @@
     <application
         android:label="Shiclash"
         android:name="${applicationName}"
+        android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
         <activity

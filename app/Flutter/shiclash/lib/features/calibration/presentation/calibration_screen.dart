@@ -49,7 +49,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     _api =
         widget.api ??
         CalibrationApi(
-          idToken: () async => widget.account.account?.authentication.idToken,
+          idToken: widget.account.apiToken,
         );
     _load();
   }

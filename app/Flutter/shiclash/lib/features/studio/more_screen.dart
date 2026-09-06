@@ -55,13 +55,15 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   Future<void> _backup() async {
-    final account = widget.account.account;
-    if (account == null) return;
     setState(() {
       _cloudBusy = true;
       _cloudMessage = null;
     });
     try {
+      final account = await widget.account.googleAccountForDrive();
+      if (account == null) {
+        throw StateError(widget.account.error ?? 'Login Google diperlukan.');
+      }
       await widget.drafts.ready;
       final backup = await widget.drive.upload(
         account,
@@ -84,13 +86,15 @@ class _MoreScreenState extends State<MoreScreen> {
   }
 
   Future<void> _restore() async {
-    final account = widget.account.account;
-    if (account == null) return;
     setState(() {
       _cloudBusy = true;
       _cloudMessage = null;
     });
     try {
+      final account = await widget.account.googleAccountForDrive();
+      if (account == null) {
+        throw StateError(widget.account.error ?? 'Login Google diperlukan.');
+      }
       final content = await widget.drive.download(account);
       if (!mounted) return;
       if (content == null) {
@@ -371,7 +375,7 @@ class _MoreScreenState extends State<MoreScreen> {
   );
 
   Widget _accountCard(BuildContext context) {
-    final account = widget.account.account;
+    final profile = widget.account.profile;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -380,9 +384,9 @@ class _MoreScreenState extends State<MoreScreen> {
           children: [
             Row(
               children: [
-                if (account?.photoUrl != null)
+                if (profile?.photoUrl != null)
                   CircleAvatar(
-                    backgroundImage: NetworkImage(account!.photoUrl!),
+                    backgroundImage: NetworkImage(profile!.photoUrl!),
                   )
                 else
                   const CircleAvatar(child: Icon(Icons.person_outline)),
@@ -392,11 +396,11 @@ class _MoreScreenState extends State<MoreScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        account?.displayName ?? 'Akun & backup',
+                        profile?.name ?? 'Akun & backup',
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       Text(
-                        account?.email ??
+                        profile?.email ??
                             'Masuk dengan Google untuk backup privat.',
                       ),
                     ],
@@ -413,7 +417,7 @@ class _MoreScreenState extends State<MoreScreen> {
               Text(_cloudMessage!),
             ],
             const SizedBox(height: 12),
-            if (account == null)
+            if (!widget.account.signedIn)
               FilledButton.icon(
                 onPressed: widget.onOpenAccount,
                 icon: const Icon(Icons.login),

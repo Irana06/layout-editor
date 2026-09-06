@@ -7,6 +7,7 @@ use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
 use App\Models\User;
+use App\Support\MobileSessionToken;
 use Firebase\JWT\JWT;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
@@ -43,6 +44,42 @@ class MobileCalibrationTest extends TestCase
             'sub' => 'google-owner', 'email' => 'owner@gmail.com', 'email_verified' => true,
             'iat' => time() - 10, 'exp' => time() + 3600, ...$changes,
         ], $this->key, 'RS256', 'test-key');
+    }
+
+    public function test_google_login_is_exchanged_for_a_long_lived_shiclash_session(): void
+    {
+        $response = $this->withToken($this->token([
+            'name' => 'Owner',
+            'picture' => 'https://example.com/avatar.png',
+        ]))->postJson('/api/v1/auth/google')->assertOk()
+            ->assertJsonPath('expires_in', MobileSessionToken::LIFETIME_SECONDS)
+            ->assertJsonPath('data.email', 'owner@gmail.com')
+            ->assertJsonPath('data.is_admin', true);
+
+        $session = $response->json('token');
+        $this->assertIsString($session);
+        $this->assertStringStartsWith(MobileSessionToken::PREFIX, $session);
+
+        $this->withToken($session)->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.email', 'owner@gmail.com')
+            ->assertJsonPath('data.is_admin', true);
+
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_forged_shiclash_session_is_rejected_without_google_lookup(): void
+    {
+        $session = app(MobileSessionToken::class)->issue([
+            'sub' => 'google-owner',
+            'email' => 'owner@gmail.com',
+            'name' => 'Owner',
+        ]);
+        $session[strlen($session) - 1] = $session[strlen($session) - 1] === 'a' ? 'b' : 'a';
+
+        $this->withToken($session)->getJson('/api/v1/auth/me')->assertUnauthorized();
+        Http::assertNothingSent();
     }
 
     public function test_verified_owner_can_save_and_public_catalog_contains_calibration(): void

@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\User;
 use App\Support\GoogleIdTokenVerifier;
+use App\Support\MobileSessionToken;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -13,18 +14,29 @@ use UnexpectedValueException;
 
 class AuthenticateGoogleApi
 {
-    public function __construct(private readonly GoogleIdTokenVerifier $verifier) {}
+    public function __construct(
+        private readonly GoogleIdTokenVerifier $googleVerifier,
+        private readonly MobileSessionToken $sessionVerifier,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->bearerToken();
         abort_unless($token && strlen($token) < 16384, 401, 'Silakan login Google kembali.');
-        try {
-            $claims = $this->verifier->verify($token);
-        } catch (UnexpectedValueException|\InvalidArgumentException $exception) {
-            abort(401, 'Sesi Google kedaluwarsa atau tidak valid. Silakan login kembali.');
-        } catch (ConnectionException|RequestException $exception) {
-            abort(503, 'Verifikasi Google belum tersedia. Coba lagi sebentar.');
+        if (str_starts_with($token, MobileSessionToken::PREFIX)) {
+            try {
+                $claims = $this->sessionVerifier->verify($token);
+            } catch (UnexpectedValueException|\InvalidArgumentException) {
+                abort(401, 'Sesi Shiclash berakhir atau tidak valid. Silakan login kembali.');
+            }
+        } else {
+            try {
+                $claims = $this->googleVerifier->verify($token);
+            } catch (UnexpectedValueException|\InvalidArgumentException) {
+                abort(401, 'Sesi Google kedaluwarsa atau tidak valid. Silakan login kembali.');
+            } catch (ConnectionException|RequestException) {
+                abort(503, 'Verifikasi Google belum tersedia. Coba lagi sebentar.');
+            }
         }
 
         $email = strtolower(trim($claims['email']));

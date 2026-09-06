@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\BootstrapController;
+use App\Http\Controllers\Api\V1\MobileAuthController;
 use App\Http\Controllers\BuildingLevelController;
 use App\Http\Controllers\BuildingUnlockRuleController;
 use App\Http\Controllers\SceneryController;
@@ -20,6 +21,8 @@ Route::prefix('v1')->group(function (): void {
     ]))->name('api.v1.index');
 
     Route::get('/bootstrap', BootstrapController::class)->name('api.v1.bootstrap');
+    Route::post('/auth/google', [MobileAuthController::class, 'store'])
+        ->middleware('throttle:10,1');
 
     Route::middleware(['throttle:60,1', AuthenticateGoogleApi::class])->group(function (): void {
         Route::get('/auth/me', fn (Request $request) => response()->json([

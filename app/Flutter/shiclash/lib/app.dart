@@ -51,7 +51,9 @@ class _AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
-    _continueOffline = !widget.googleServicesEnabled;
+    // Startup must never invoke Google's account picker. The editor is always
+    // usable offline; login remains an explicit action from the account page.
+    _continueOffline = true;
     _account = GoogleAccountController(enabled: widget.googleServicesEnabled)
       ..addListener(_onAccountChanged);
     _account.initialize();
