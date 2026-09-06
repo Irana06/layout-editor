@@ -76,7 +76,9 @@ class MobileCalibrationTest extends TestCase
             'email' => 'owner@gmail.com',
             'name' => 'Owner',
         ]);
-        $session[strlen($session) - 1] = $session[strlen($session) - 1] === 'a' ? 'b' : 'a';
+        $parts = explode('.', substr($session, strlen(MobileSessionToken::PREFIX)));
+        $parts[2][0] = $parts[2][0] === 'a' ? 'b' : 'a';
+        $session = MobileSessionToken::PREFIX.implode('.', $parts);
 
         $this->withToken($session)->getJson('/api/v1/auth/me')->assertUnauthorized();
         Http::assertNothingSent();

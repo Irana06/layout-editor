@@ -40,7 +40,7 @@ dependencies:
     google_sign_in: ^7.2.0
     googleapis: ^17.0.0
     googleapis_auth: ^2.3.3
-    flutter_secure_storage: ^11.0.0
+    flutter_secure_storage: ^10.3.1
     extension_google_sign_in_as_googleapis_auth: ^3.0.0
 
 dev_dependencies:
