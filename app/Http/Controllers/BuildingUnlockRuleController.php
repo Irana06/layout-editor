@@ -103,25 +103,27 @@ class BuildingUnlockRuleController extends Controller
                 ->whereIn('building_type_id', $typeIds)
                 ->get()
                 ->keyBy(fn (BuildingUnlockRule $rule): string => "{$rule->th_level}:{$rule->building_type_id}");
-            $inherited = $futureTownHallLevels->flatMap(function (int $futureLevel) use ($activeRules, $futureRuleMap, $now) {
-                return $activeRules
-                    ->filter(function (array $rule) use ($futureLevel, $futureRuleMap): bool {
-                        $existing = $futureRuleMap->get("{$futureLevel}:{$rule['building_type_id']}");
+            $inherited = [];
+            foreach ($futureTownHallLevels as $futureLevel) {
+                foreach ($activeRules as $rule) {
+                    $existing = $futureRuleMap->get("{$futureLevel}:{$rule['building_type_id']}");
+                    if ($existing !== null && $existing->max_building_level > 0) {
+                        continue;
+                    }
 
-                        return $existing === null || $existing->max_building_level <= 0;
-                    })
-                    ->map(fn (array $rule): array => [
+                    $inherited[] = [
                         'building_type_id' => $rule['building_type_id'],
                         'th_level' => $futureLevel,
                         'max_building_level' => $rule['max_building_level'],
                         'max_count' => $rule['max_count'],
                         'created_at' => $now,
                         'updated_at' => $now,
-                    ]);
-            });
-            if ($inherited->isNotEmpty()) {
+                    ];
+                }
+            }
+            if ($inherited !== []) {
                 BuildingUnlockRule::query()->upsert(
-                    $inherited->all(),
+                    $inherited,
                     ['building_type_id', 'th_level'],
                     ['max_building_level', 'max_count', 'updated_at'],
                 );
