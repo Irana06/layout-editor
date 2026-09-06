@@ -246,10 +246,18 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
     final draft = _drafts[type.id]!;
     final enabled = draft.maxLevel > 0;
     final availableLevels =
-        type.levels.map((level) => level.level).toSet().toList()..sort();
+        type.levels
+            .map((level) => level.level)
+            .where((level) => level > 0)
+            .toSet()
+            .toList()
+          ..sort();
+    final hasActiveLevel = availableLevels.isNotEmpty;
     final selectedLevel = availableLevels.contains(draft.maxLevel)
         ? draft.maxLevel
-        : availableLevels.last;
+        : hasActiveLevel
+        ? availableLevels.last
+        : 0;
     final image =
         type.thumbnailFor(enabled ? selectedLevel : 999)?.imageUrl ?? '';
     return Container(
@@ -292,8 +300,9 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
                 ),
               ),
               Switch(
+                key: ValueKey('unlock-building-${type.id}'),
                 value: enabled,
-                onChanged: _saving
+                onChanged: _saving || !hasActiveLevel
                     ? null
                     : (value) => _change(
                         type.id,
@@ -304,7 +313,15 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
               ),
             ],
           ),
-          if (enabled)
+          if (!hasActiveLevel)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Belum ada level building aktif di katalog.',
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            )
+          else if (enabled)
             Row(
               children: [
                 Expanded(

@@ -8,8 +8,10 @@ import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
 class FakeCalibrationApi extends CalibrationApi {
-  FakeCalibrationApi({this.admin = true}) : super(idToken: () async => 'test');
+  FakeCalibrationApi({this.admin = true, this.includeZeroLevelBuilding = false})
+    : super(idToken: () async => 'test');
   final bool admin;
+  final bool includeZeroLevelBuilding;
   bool failSave = false;
   Map<String, dynamic>? saved;
   String? savedPath;
@@ -69,6 +71,33 @@ class FakeCalibrationApi extends CalibrationApi {
             },
           ],
         },
+        if (includeZeroLevelBuilding)
+          {
+            'id': 2,
+            'name': 'Hero Hall',
+            'category': 'army',
+            'subfolder': 'hero-hall',
+            'default_grid_width': 3,
+            'default_grid_height': 3,
+            'levels': [
+              {
+                'id': 20,
+                'level': 0,
+                'image_url': 'https://example.com/hero-hall-0.png',
+                'scale': 1,
+                'offset_x': 0,
+                'offset_y': 0,
+              },
+              {
+                'id': 21,
+                'level': 1,
+                'image_url': 'https://example.com/hero-hall-1.png',
+                'scale': 1,
+                'offset_x': 0,
+                'offset_y': 0,
+              },
+            ],
+          },
       ],
       'unlock_rules': [],
     },
@@ -196,6 +225,26 @@ void main() {
     expect(api.saved?['th_level'], 1);
     expect((api.saved?['rules'] as List).single['max_building_level'], 1);
     expect((api.saved?['rules'] as List).single['max_count'], 1);
+  });
+
+  testWidgets('level zero asset does not prevent enabling a building', (
+    tester,
+  ) async {
+    final api = FakeCalibrationApi(includeZeroLevelBuilding: true);
+    await open(tester, api);
+    await tester.tap(find.text('Aturan TH'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Army'));
+    await tester.pumpAndSettle();
+
+    final heroHallSwitch = find.byKey(const ValueKey('unlock-building-2'));
+    expect(tester.widget<Switch>(heroHallSwitch).value, isFalse);
+    await tester.tap(heroHallSwitch);
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<Switch>(heroHallSwitch).value, isTrue);
+    expect(find.text('Level 0'), findsNothing);
+    expect(find.text('Level 1'), findsOneWidget);
   });
 
   testWidgets('building picker groups assets and selects a named level', (
