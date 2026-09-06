@@ -12,22 +12,26 @@ class AccountProfile {
     required this.name,
     required this.email,
     this.photoUrl,
+    this.isAdmin = false,
   });
 
   final String name;
   final String email;
   final String? photoUrl;
+  final bool isAdmin;
 
   Map<String, dynamic> toJson() => {
     'name': name,
     'email': email,
     'photo_url': photoUrl,
+    'is_admin': isAdmin,
   };
 
   factory AccountProfile.fromJson(Map<String, dynamic> json) => AccountProfile(
     name: json['name']?.toString() ?? '',
     email: json['email']?.toString() ?? '',
     photoUrl: json['photo_url']?.toString(),
+    isAdmin: json['is_admin'] == true || json['is_admin'] == 1,
   );
 }
 
@@ -60,6 +64,7 @@ class GoogleAccountController extends ChangeNotifier {
   bool get ready => _ready;
   bool get busy => _busy;
   bool get signedIn => _sessionToken != null;
+  bool get isAdmin => _profile?.isAdmin ?? false;
   bool get configured => AppConfig.googleWebClientId.isNotEmpty;
   String? get error => _error;
 

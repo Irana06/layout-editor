@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/core/update/update_service.dart';
 import 'package:shiclash/core/update/update_install_dialog.dart';
 import 'package:shiclash/features/account/data/drive_backup_service.dart';
@@ -8,6 +6,7 @@ import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/calibration/presentation/calibration_screen.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class MoreScreen extends StatefulWidget {
   const MoreScreen({
@@ -30,8 +29,6 @@ class MoreScreen extends StatefulWidget {
 }
 
 class _MoreScreenState extends State<MoreScreen> {
-  bool _checking = false;
-  String? _result;
   bool _updateChecking = false;
   UpdateInfo? _update;
   String? _updateMessage;
@@ -179,27 +176,15 @@ class _MoreScreenState extends State<MoreScreen> {
     }
   }
 
-  Future<void> _check() async {
-    setState(() {
-      _checking = true;
-      _result = null;
-    });
-    try {
-      final catalog = await widget.repository.load();
-      if (mounted) {
-        setState(
-          () => _result =
-              'Terhubung · ${catalog.buildingTypes.length} bangunan, ${catalog.sceneries.length} scenery.',
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _result = 'Tidak dapat terhubung. Periksa internet dan pastikan server aktif.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _checking = false);
+  Future<void> _openSupport() async {
+    final opened = await launchUrl(
+      Uri.parse('https://saweria.co/shicomp'),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tidak dapat membuka Saweria.')),
+      );
     }
   }
 
@@ -216,19 +201,23 @@ class _MoreScreenState extends State<MoreScreen> {
         ),
         const SizedBox(height: 24),
         _accountCard(context),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.tune),
-            title: const Text('Calibrator · Admin'),
-            subtitle: const Text(
-              'Atur grid scenery dan posisi building per level.',
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.of(context).push<void>(
-              MaterialPageRoute(
-                builder: (_) => CalibrationScreen(
-                  account: widget.account,
-                  repository: widget.repository,
+        const SizedBox(height: 10),
+        _supportCard(context),
+        if (widget.account.isAdmin)
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Calibrator · Admin'),
+              subtitle: const Text(
+                'Atur grid scenery dan posisi building per level.',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => CalibrationScreen(
+                    account: widget.account,
+                    repository: widget.repository,
+                  ),
                 ),
               ),
             ),
@@ -332,35 +321,6 @@ class _MoreScreenState extends State<MoreScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        Text('Koneksi', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        SelectableText(AppConfig.apiBaseUrl),
-        Wrap(
-          spacing: 8,
-          children: [
-            FilledButton.icon(
-              onPressed: _checking ? null : _check,
-              icon: const Icon(Icons.network_check),
-              label: Text(_checking ? 'Memeriksa…' : 'Tes koneksi'),
-            ),
-            TextButton(
-              onPressed: () async {
-                await Clipboard.setData(
-                  const ClipboardData(text: AppConfig.apiBaseUrl),
-                );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Alamat server disalin.')),
-                  );
-                }
-              },
-              child: const Text('Salin alamat'),
-            ),
-          ],
-        ),
-        if (_result != null) Text(_result!),
-        const SizedBox(height: 24),
         const Text(
           'Tentang Shiclash',
           style: TextStyle(fontWeight: FontWeight.bold),
@@ -371,6 +331,28 @@ class _MoreScreenState extends State<MoreScreen> {
         ),
         const SizedBox(height: 24),
       ],
+    ),
+  );
+
+  Widget _supportCard(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Dukung Shiclash', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 6),
+          const Text(
+            'Dukunganmu membantu pengembangan, aset, dan update aplikasi tetap berlanjut.',
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _openSupport,
+            icon: const Icon(Icons.volunteer_activism_outlined),
+            label: const Text('Support di Saweria'),
+          ),
+        ],
+      ),
     ),
   );
 

@@ -532,7 +532,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                                       as bool? ??
                                   _type!.showsDeploymentRing)
                             : true,
-                        opacity: .8,
+                        opacity: 1,
                         onDrag: _drag,
                         onStart: _draft!.beginGesture,
                         onEnd: _draft!.endGesture,
