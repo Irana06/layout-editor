@@ -146,9 +146,9 @@ class LayoutController extends Controller
         foreach ($placements as $index => $placement) {
             $typeId = $placement['building_type_id'];
             $type = $types->get($typeId);
-            $name = $type?->name ?? "building #{$typeId}";
+            $name = $type->name;
 
-            if ($type === null || ! $type->levels->contains('level', $placement['level'])) {
+            if (! $type->levels->contains('level', $placement['level'])) {
                 throw ValidationException::withMessages([
                     "data.{$index}.level" => "Aset {$name} level {$placement['level']} tidak tersedia.",
                 ]);
