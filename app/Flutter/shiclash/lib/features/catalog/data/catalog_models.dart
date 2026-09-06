@@ -165,6 +165,32 @@ class BuildingType {
 
     return result;
   }
+
+  /// A footprint belongs to the building family, not to one sprite level.
+  /// Level-specific visual calibration remains intact when this changes.
+  BuildingType withSharedFootprint(int size) => BuildingType(
+    id: id,
+    name: name,
+    category: category,
+    subfolder: subfolder,
+    isTownHall: isTownHall,
+    defaultGridWidth: size,
+    defaultGridHeight: size,
+    levels: levels
+        .map((level) => level.withFootprint(width: null, height: null))
+        .toList(growable: false),
+  );
+
+  BuildingType withLevels(List<BuildingLevel> values) => BuildingType(
+    id: id,
+    name: name,
+    category: category,
+    subfolder: subfolder,
+    isTownHall: isTownHall,
+    defaultGridWidth: defaultGridWidth,
+    defaultGridHeight: defaultGridHeight,
+    levels: List.unmodifiable(values),
+  );
 }
 
 class BuildingLevel {
@@ -210,9 +236,41 @@ class BuildingLevel {
     offsetY: (values['offset_y'] as num).toDouble(),
   );
 
+  /// Keep the shared footprint untouched while editing the artwork for one
+  /// level.  This is intentionally separate from [withCalibration] so a
+  /// scale/position save cannot recreate a per-level footprint override.
+  BuildingLevel withVisualCalibration(Map<String, dynamic> values) =>
+      BuildingLevel(
+        id: id,
+        level: level,
+        imageUrl: imageUrl,
+        gridWidth: gridWidth,
+        gridHeight: gridHeight,
+        scale: (values['scale'] as num).toDouble(),
+        offsetX: (values['offset_x'] as num).toDouble(),
+        offsetY: (values['offset_y'] as num).toDouble(),
+      );
+
+  BuildingLevel withFootprint({int? width, int? height}) => BuildingLevel(
+    id: id,
+    level: level,
+    imageUrl: imageUrl,
+    gridWidth: width,
+    gridHeight: height,
+    scale: scale,
+    offsetX: offsetX,
+    offsetY: offsetY,
+  );
+
   Map<String, dynamic> calibrationValues() => {
     'grid_width': gridWidth,
     'grid_height': gridHeight,
+    'scale': scale,
+    'offset_x': offsetX,
+    'offset_y': offsetY,
+  };
+
+  Map<String, dynamic> visualCalibrationValues() => {
     'scale': scale,
     'offset_x': offsetX,
     'offset_y': offsetY,

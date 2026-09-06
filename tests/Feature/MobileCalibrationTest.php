@@ -98,13 +98,78 @@ class MobileCalibrationTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
+    public function test_verified_admin_can_apply_one_square_footprint_to_every_level_of_a_building(): void
+    {
+        $type = BuildingType::create([
+            'name' => 'Army Camp',
+            'category' => 'army',
+            'default_grid_width' => 3,
+            'default_grid_height' => 2,
+        ]);
+        $levelOne = BuildingLevel::create([
+            'building_type_id' => $type->id,
+            'level' => 1,
+            'file_path' => 'army-camp-1.png',
+            'grid_width' => 2,
+            'grid_height' => 3,
+            'scale' => 1.25,
+            'offset_x' => 12.5,
+            'offset_y' => -8,
+        ]);
+        $levelTwo = BuildingLevel::create([
+            'building_type_id' => $type->id,
+            'level' => 2,
+            'file_path' => 'army-camp-2.png',
+            'grid_width' => 5,
+            'grid_height' => 4,
+            'scale' => .8,
+            'offset_x' => -14,
+            'offset_y' => 9.5,
+        ]);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-types/{$type->id}/footprint", ['grid_size' => 4])
+            ->assertOk()
+            ->assertJsonPath('buildingType.id', $type->id)
+            ->assertJsonPath('buildingType.default_grid_width', 4)
+            ->assertJsonPath('buildingType.default_grid_height', 4)
+            ->assertJsonPath('buildingType.levels.0.grid_width', null)
+            ->assertJsonPath('buildingType.levels.0.grid_height', null)
+            ->assertJsonPath('buildingType.levels.1.grid_width', null)
+            ->assertJsonPath('buildingType.levels.1.grid_height', null);
+
+        $this->assertDatabaseHas('building_types', [
+            'id' => $type->id,
+            'default_grid_width' => 4,
+            'default_grid_height' => 4,
+        ]);
+        $this->assertDatabaseHas('building_levels', [
+            'id' => $levelOne->id,
+            'grid_width' => null,
+            'grid_height' => null,
+            'scale' => 1.25,
+            'offset_x' => 12.5,
+            'offset_y' => -8,
+        ]);
+        $this->assertDatabaseHas('building_levels', [
+            'id' => $levelTwo->id,
+            'grid_width' => null,
+            'grid_height' => null,
+            'scale' => .8,
+            'offset_x' => -14,
+            'offset_y' => 9.5,
+        ]);
+    }
+
     public function test_guest_and_non_admin_cannot_read_or_mutate_calibration(): void
     {
         $scenery = Scenery::create(['name' => 'Classic', 'file_path' => 'classic.png', 'image_width' => 1600, 'image_height' => 1200]);
+        $type = BuildingType::create(['name' => 'Cannon', 'category' => 'defensive']);
         $this->getJson('/api/v1/admin/calibration')->assertUnauthorized();
         $this->withToken($this->token(['sub' => 'member', 'email' => 'member@gmail.com']))
             ->getJson('/api/v1/admin/calibration')->assertForbidden();
         $this->patchJson("/api/v1/admin/sceneries/{$scenery->id}", ['origin_x' => 10])->assertForbidden();
+        $this->patchJson("/api/v1/admin/building-types/{$type->id}/footprint", ['grid_size' => 4])->assertForbidden();
     }
 
     public function test_wrong_audience_expired_unverified_and_forged_tokens_are_rejected(): void

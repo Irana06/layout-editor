@@ -145,6 +145,57 @@ class LayoutUnlockRuleTest extends TestCase
             ->assertCreated();
     }
 
+    public function test_town_hall_is_allowed_once_at_the_selected_level_without_an_unlock_rule(): void
+    {
+        $townHall = BuildingType::create([
+            'name' => 'Town Hall',
+            'category' => 'resource',
+            'subfolder' => 'town-hall',
+            'is_town_hall' => true,
+            'default_grid_width' => 4,
+            'default_grid_height' => 4,
+        ]);
+        foreach ([1, 2] as $level) {
+            BuildingLevel::create([
+                'building_type_id' => $townHall->id,
+                'level' => $level,
+                'file_path' => "buildings/resource/town-hall/{$level}.png",
+            ]);
+        }
+
+        $this->save([
+            ['building_type_id' => $townHall->id, 'level' => 2, 'gx' => 0, 'gy' => 0],
+        ], thLevel: 2)->assertCreated();
+    }
+
+    public function test_town_hall_must_use_the_selected_level_and_can_only_be_placed_once(): void
+    {
+        $townHall = BuildingType::create([
+            'name' => 'Town Hall',
+            'category' => 'resource',
+            'subfolder' => 'town-hall',
+            'is_town_hall' => true,
+        ]);
+        foreach ([1, 2] as $level) {
+            BuildingLevel::create([
+                'building_type_id' => $townHall->id,
+                'level' => $level,
+                'file_path' => "buildings/resource/town-hall/{$level}.png",
+            ]);
+        }
+
+        $this->save([
+            ['building_type_id' => $townHall->id, 'level' => 1, 'gx' => 0, 'gy' => 0],
+        ], thLevel: 2)->assertStatus(422)
+            ->assertJsonValidationErrors('data.0.level');
+
+        $this->save([
+            ['building_type_id' => $townHall->id, 'level' => 2, 'gx' => 0, 'gy' => 0],
+            ['building_type_id' => $townHall->id, 'level' => 2, 'gx' => 5, 'gy' => 0],
+        ], thLevel: 2)->assertStatus(422)
+            ->assertJsonValidationErrors('data.1');
+    }
+
     public function test_bulk_update_persists_rules_for_a_town_hall(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']));

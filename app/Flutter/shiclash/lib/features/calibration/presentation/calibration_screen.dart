@@ -104,7 +104,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     final values = _rules
         ? null
         : _building
-        ? _level?.calibrationValues()
+        ? _buildingCalibrationValues()
         : _scenery?.calibrationValues();
     _draft = values == null ? null : CalibrationDraft(values);
     _draft?.addListener(() {
@@ -112,6 +112,31 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     });
     _edit = false;
     _status = null;
+  }
+
+  /// Footprint is shared by the whole building family.  The draft keeps it
+  /// alongside this level's visual values so one Save action is enough, while
+  /// scale and offsets remain independent for every artwork level.
+  Map<String, dynamic>? _buildingCalibrationValues() {
+    final type = _type;
+    final level = _level;
+    if (type == null || level == null) return null;
+    return {
+      ...level.visualCalibrationValues(),
+      'grid_size': type.defaultGridWidth,
+    };
+  }
+
+  int _draftFootprintSize() {
+    final value = _draft?.values['grid_size'];
+    return (value as num?)?.toInt() ?? _type?.defaultGridWidth ?? 1;
+  }
+
+  BuildingLevel _previewLevel() {
+    final size = _draftFootprintSize();
+    return _level!
+        .withVisualCalibration(_draft!.values)
+        .withFootprint(width: size, height: size);
   }
 
   void _showError(Object error) {
@@ -168,25 +193,61 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       _status = null;
     });
     try {
-      final result = await _api.request(
-        _building
-            ? 'admin/building-levels/${_level!.id}'
-            : 'admin/sceneries/${_scenery!.id}',
-        body: {...draft.values, if (!_building) 'calibrated': true},
-      );
-      if (!mounted) return;
-      setState(() {
-        if (_building) {
-          final values = BuildingLevel.fromJson(
-            Map<String, dynamic>.from(result['buildingLevel']),
-          ).calibrationValues();
-          _level = _level!.withCalibration(values);
-          final index = _type!.levels.indexWhere(
-            (item) => item.id == _level!.id,
+      if (_building) {
+        final originalType = _type!;
+        final originalLevel = _level!;
+        final footprintSize = _draftFootprintSize();
+        var updatedType = originalType;
+
+        if (originalType.defaultGridWidth != footprintSize ||
+            originalType.defaultGridHeight != footprintSize) {
+          await _api.request(
+            'admin/building-types/${originalType.id}/footprint',
+            body: {'grid_size': footprintSize},
           );
-          _type!.levels[index] = _level!;
-          draft.saved(values);
-        } else {
+          // Keep the already-loaded image URLs while clearing all old
+          // per-level overrides locally, exactly as the server does.
+          updatedType = originalType.withSharedFootprint(footprintSize);
+        }
+
+        final result = await _api.request(
+          'admin/building-levels/${originalLevel.id}',
+          body: {
+            'scale': draft.values['scale'],
+            'offset_x': draft.values['offset_x'],
+            'offset_y': draft.values['offset_y'],
+          },
+        );
+        final remoteValues = BuildingLevel.fromJson(
+          Map<String, dynamic>.from(result['buildingLevel']),
+        ).visualCalibrationValues();
+        final currentLevel = updatedType.levels.firstWhere(
+          (item) => item.id == originalLevel.id,
+        );
+        final updatedLevel = currentLevel.withVisualCalibration(remoteValues);
+        updatedType = updatedType.withLevels([
+          for (final item in updatedType.levels)
+            if (item.id == updatedLevel.id) updatedLevel else item,
+        ]);
+
+        if (!mounted) return;
+        setState(() {
+          _type = updatedType;
+          _level = updatedLevel;
+          final index = _catalog!.buildingTypes.indexWhere(
+            (item) => item.id == updatedType.id,
+          );
+          _catalog!.buildingTypes[index] = updatedType;
+          _status = 'Tersimpan di server. Footprint dipakai semua level; skala dan posisi tetap per level.';
+        });
+        draft.saved(_buildingCalibrationValues()!);
+      } else {
+        final result = await _api.request(
+          'admin/sceneries/${_scenery!.id}',
+          body: {...draft.values, 'calibrated': true},
+        );
+        if (!mounted) return;
+        setState(() {
           _scenery = _scenery!.withCalibration(
             Map<String, dynamic>.from(result['scenery']),
           );
@@ -194,10 +255,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             (s) => s.id == _scenery!.id,
           );
           _catalog!.sceneries[index] = _scenery!;
-          draft.saved(_scenery!.calibrationValues());
-        }
-        _status = 'Tersimpan di server. Editor dan katalog akan memakai kalibrasi terbaru.';
-      });
+          _status = 'Tersimpan di server. Editor dan katalog akan memakai kalibrasi terbaru.';
+        });
+        draft.saved(_scenery!.calibrationValues());
+      }
       widget.repository.invalidate();
     } catch (error) {
       _showError(error);
@@ -457,7 +518,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                             : _scenery!.withCalibration(_draft!.values),
                         type: _building ? _type : null,
                         level: _building
-                            ? _level!.withCalibration(_draft!.values)
+                            ? _previewLevel()
                             : null,
                         editMode: _edit && !_locked && !_saving,
                         showGrid: _grid,
@@ -559,20 +620,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                             _scenery!.locked ? 'Buka kunci' : 'Kunci grid',
                           ),
                         ),
-                      if (_building)
-                        OutlinedButton(
-                          onPressed: _saving
-                              ? null
-                              : () => _draft!.change({
-                                  'grid_width': null,
-                                  'grid_height': null,
-                                }),
-                          child: const Text('Footprint bawaan'),
-                        ),
                       if (_building && (_type?.levels.length ?? 0) > 1)
                         OutlinedButton(
                           onPressed: _saving ? null : _copyLevel,
-                          child: const Text('Salin dari level lain'),
+                          child: const Text('Salin posisi & skala'),
                         ),
                     ],
                   ),
@@ -735,20 +786,22 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       children: _building
           ? [
               number(
-                'Footprint lebar (tile)',
-                'grid_width',
+                'Ukuran footprint (tile)',
+                'grid_size',
                 1,
                 20,
                 1,
                 fallback: _type!.defaultGridWidth.toDouble(),
               ),
-              number(
-                'Footprint tinggi (tile)',
-                'grid_height',
-                1,
-                20,
-                1,
-                fallback: _type!.defaultGridHeight.toDouble(),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${_draftFootprintSize()} × ${_draftFootprintSize()} tile · diterapkan ke semua level ${_type!.name}. Skala dan offset tetap khusus level ini.',
+                  style: const TextStyle(
+                    color: AppColors.muted,
+                    fontSize: 12,
+                  ),
+                ),
               ),
               number('Skala gambar', 'scale', .1, 5, .01),
               number('Offset X (px)', 'offset_x', -500, 500, .5),
@@ -784,7 +837,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         ),
       ),
     );
-    if (source != null && mounted) _draft!.change(source.calibrationValues());
+    if (source != null && mounted) {
+      _draft!.change(source.visualCalibrationValues());
+    }
   }
 
   void _help() => showDialog<void>(
@@ -794,10 +849,10 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       content: const SingleChildScrollView(
         child: Text(
           '1. Scenery: atur lebar/tinggi tile dan jumlah tile. Geser origin hingga grid mengikuti tanah base, simpan, lalu kunci.\n\n'
-          '2. Building: pilih jenis dan level. Atur footprint sesuai tile yang ditempati. Gunakan skala untuk ukuran gambar dan offset untuk posisi visual.\n\n'
+          '2. Building: pilih jenis dan level. Footprint memakai satu ukuran persegi (misalnya 4 × 4) untuk semua level building yang sama. Gunakan skala dan offset untuk artwork level yang sedang dipilih.\n\n'
           '3. Aturan TH: pilih Town Hall, aktifkan building yang tersedia, lalu isi level dan jumlah maksimum. Aturan ini langsung membatasi pilihan di Editor.\n\n'
           '4. Garis biru adalah batas footprint. Lapisan rumput mengikuti footprint dan area putih satu tile di luarnya menandai zona deployment pasukan.\n\n'
-          '5. Simpan ke server untuk menerapkan ke katalog bersama. Salin level lain mengisi nilai pratinjau; periksa gambar level baru sebelum menyimpan.\n\n'
+          '5. Simpan ke server untuk menerapkan ke katalog bersama. Salin posisi & skala dari level lain tidak mengubah footprint bersama; periksa gambar level baru sebelum menyimpan.\n\n'
           'Undo/redo berlaku untuk sesi kalibrasi ini. Perubahan belum tersimpan tidak diterapkan ke editor.',
         ),
       ),

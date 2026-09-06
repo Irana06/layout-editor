@@ -593,14 +593,14 @@ class _BuildingPalette extends StatelessWidget {
     final buildings = controller.catalog.buildingTypes
         .where(
           (type) =>
-              !type.isTownHall &&
-              controller.catalog.maxLevelFor(
-                    type.id,
-                    controller.townHallLevel,
-                  ) >
-                  0,
+              controller.maxLevelFor(type) > 0 &&
+              type.thumbnailFor(controller.maxLevelFor(type)) != null,
         )
-        .toList();
+        .toList()
+      ..sort((a, b) {
+        if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
+        return a.isTownHall ? -1 : 1;
+      });
     return Container(
       height: 132,
       decoration: const BoxDecoration(
@@ -634,10 +634,7 @@ class _BuildingPalette extends StatelessWidget {
               separatorBuilder: (_, _) => const SizedBox(width: 7),
               itemBuilder: (context, index) {
                 final type = buildings[index];
-                final maxLevel = controller.catalog.maxLevelFor(
-                  type.id,
-                  controller.townHallLevel,
-                );
+                final maxLevel = controller.maxLevelFor(type);
                 final level = type.thumbnailFor(maxLevel);
                 final selected = controller.armedBuildingTypeId == type.id;
                 final placed = controller.placements

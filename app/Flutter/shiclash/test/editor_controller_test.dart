@@ -32,6 +32,16 @@ void main() {
             defaultGridHeight: 4,
             levels: [
               BuildingLevel(
+                id: 10,
+                level: 9,
+                imageUrl: '',
+                gridWidth: 4,
+                gridHeight: 4,
+                scale: 1,
+                offsetX: 0,
+                offsetY: 0,
+              ),
+              BuildingLevel(
                 id: 1,
                 level: 10,
                 imageUrl: '',
@@ -91,6 +101,45 @@ void main() {
     expect(controller.placements.map((item) => item.id).toSet(), hasLength(2));
     controller.undo();
     expect(controller.toLayout(), document);
+  });
+
+  test('Town Hall is available once at the active Town Hall level', () {
+    final townHall = controller.typeFor(1)!;
+
+    expect(controller.showGrid, isFalse);
+    expect(controller.maxLevelFor(townHall), 10);
+
+    controller.arm(townHall, level: 1);
+    expect(controller.armedLevel, 10);
+    controller.handleGridTap(4, 6);
+    controller.handleGridTap(12, 12);
+
+    expect(controller.placements, hasLength(1));
+    expect(controller.placements.single.buildingTypeId, 1);
+    expect(controller.placements.single.level, 10);
+    expect(controller.status, contains('Limit'));
+  });
+
+  test('restored Town Hall must match the selected Town Hall level', () {
+    final valid = {
+      'scenery_id': 1,
+      'th_level': 10,
+      'data': [
+        {'building_type_id': 1, 'level': 10, 'gx': 4, 'gy': 6},
+      ],
+    };
+
+    controller.restoreLayout(valid);
+    expect(controller.placements, hasLength(1));
+
+    final invalid = {
+      ...valid,
+      'data': [
+        {'building_type_id': 1, 'level': 9, 'gx': 4, 'gy': 6},
+      ],
+    };
+    expect(() => controller.restoreLayout(invalid), throwsFormatException);
+    expect(controller.placements, hasLength(1));
   });
 
   test('invalid draft does not mutate current canvas or history', () {

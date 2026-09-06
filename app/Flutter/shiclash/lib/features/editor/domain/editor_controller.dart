@@ -44,7 +44,8 @@ class EditorController extends ChangeNotifier {
   int? armedBuildingTypeId;
   int? armedLevel;
   bool movingSelection = false;
-  bool showGrid = true;
+  // The scenery remains clean by default; the line grid is an opt-in aid.
+  bool showGrid = false;
   String status = 'Pilih bangunan, lalu ketuk petak untuk menempatkan.';
 
   bool get canUndo => _historyIndex > 0;
@@ -82,9 +83,12 @@ class EditorController extends ChangeNotifier {
         final row = Map<String, dynamic>.from(raw as Map);
         final type = scratch.typeFor(row['building_type_id'] as int);
         final level = row['level'] as int;
-        if (type == null ||
-            !type.levels.any((item) => item.level == level) ||
-            level > catalog.maxLevelFor(type.id, th)) {
+        if (type == null || !type.levels.any((item) => item.level == level)) {
+          throw const FormatException('Bangunan atau level tidak tersedia');
+        }
+        final maxLevel = scratch.maxLevelFor(type);
+        if (maxLevel < 1 ||
+            (type.isTownHall ? level != maxLevel : level > maxLevel)) {
           throw const FormatException('Bangunan atau level tidak tersedia');
         }
         scratch.arm(type, level: level);
@@ -137,6 +141,8 @@ class EditorController extends ChangeNotifier {
   }
 
   int maxCountFor(int buildingTypeId) {
+    final type = typeFor(buildingTypeId);
+    if (type?.isTownHall == true) return 1;
     for (final rule in catalog.unlockRules) {
       if (rule.buildingTypeId == buildingTypeId &&
           rule.thLevel == townHallLevel) {
@@ -156,18 +162,37 @@ class EditorController extends ChangeNotifier {
   }
 
   void arm(BuildingType type, {int? level}) {
-    final maxLevel = catalog.maxLevelFor(type.id, townHallLevel);
+    final maxLevel = maxLevelFor(type);
     if (maxLevel < 1) {
       status = '${type.name} belum tersedia di TH $townHallLevel.';
       notifyListeners();
       return;
     }
     armedBuildingTypeId = type.id;
-    armedLevel = (level ?? maxLevel).clamp(1, maxLevel);
+    // The Town Hall represents the selected base level, rather than an
+    // independently upgradeable building.  It must therefore use that exact
+    // level even when an older level was passed by a restored draft.
+    armedLevel = type.isTownHall
+        ? maxLevel
+        : (level ?? maxLevel).clamp(1, maxLevel);
     selectedId = null;
     movingSelection = false;
     status = '${type.name} level $armedLevel siap ditempatkan.';
     notifyListeners();
+  }
+
+  /// Town Hall is always placeable exactly once at the selected Town Hall
+  /// level. Every other building is controlled by its explicit unlock rule.
+  int maxLevelFor(BuildingType type) {
+    if (!type.isTownHall) {
+      return catalog.maxLevelFor(type.id, townHallLevel);
+    }
+
+    // A catalog can be incomplete while assets are being calibrated.  Do not
+    // arm a Town Hall level unless its matching sprite exists.
+    return type.levels.any((item) => item.level == townHallLevel)
+        ? townHallLevel
+        : 0;
   }
 
   void cancelTool() {

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\MobileAuthController;
 use App\Http\Controllers\BuildingLevelController;
+use App\Http\Controllers\BuildingTypeController;
 use App\Http\Controllers\BuildingUnlockRuleController;
 use App\Http\Controllers\SceneryController;
 use App\Http\Middleware\AuthenticateGoogleApi;
@@ -35,6 +36,7 @@ Route::prefix('v1')->group(function (): void {
         Route::prefix('admin')->middleware(EnsureUserIsAdmin::class)->group(function (): void {
             Route::get('/calibration', [BootstrapController::class, 'calibration']);
             Route::patch('/sceneries/{scenery}', [SceneryController::class, 'update']);
+            Route::patch('/building-types/{buildingType}/footprint', [BuildingTypeController::class, 'updateFootprint']);
             Route::patch('/building-levels/{buildingLevel}', [BuildingLevelController::class, 'update']);
             Route::patch('/unlock-rules', [BuildingUnlockRuleController::class, 'bulkUpdate']);
         });

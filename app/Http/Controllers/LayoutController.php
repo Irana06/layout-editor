@@ -136,14 +136,44 @@ class LayoutController extends Controller
     private function validateThLevelCap(int $thLevel, array $placements): void
     {
         $rules = BuildingLevelRules::forThLevel($thLevel);
-        $names = BuildingType::query()
+        $types = BuildingType::query()
             ->whereIn('id', array_values(array_unique(array_column($placements, 'building_type_id'))))
-            ->pluck('name', 'id');
+            ->with('levels:id,building_type_id,level')
+            ->get()
+            ->keyBy('id');
         $counts = [];
 
         foreach ($placements as $index => $placement) {
             $typeId = $placement['building_type_id'];
-            $name = $names[$typeId] ?? "building #{$typeId}";
+            $type = $types->get($typeId);
+            $name = $type?->name ?? "building #{$typeId}";
+
+            if ($type === null || ! $type->levels->contains('level', $placement['level'])) {
+                throw ValidationException::withMessages([
+                    "data.{$index}.level" => "Aset {$name} level {$placement['level']} tidak tersedia.",
+                ]);
+            }
+
+            // Town Hall is the base's selected level.  It has no unlock-rule
+            // row, but it is always permitted once when its exact sprite is
+            // present in the catalog.
+            if ($type->is_town_hall) {
+                if ($placement['level'] !== $thLevel) {
+                    throw ValidationException::withMessages([
+                        "data.{$index}.level" => "{$name} harus memakai level Town Hall {$thLevel}.",
+                    ]);
+                }
+
+                $counts[$typeId] = ($counts[$typeId] ?? 0) + 1;
+                if ($counts[$typeId] > 1) {
+                    throw ValidationException::withMessages([
+                        "data.{$index}" => "Jumlah {$name} melebihi batas yang diizinkan (maks 1) untuk Town Hall level {$thLevel}.",
+                    ]);
+                }
+
+                continue;
+            }
+
             $maxLevel = (int) ($rules[$typeId]->max_building_level ?? 0);
 
             if ($maxLevel === 0) {
