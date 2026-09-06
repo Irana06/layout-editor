@@ -22,7 +22,7 @@ void main() {
     await tester.tap(find.text('Lainnya'));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('Panduan & informasi'), findsOneWidget);
-    expect(find.text('Calibrator · Admin'), findsOneWidget);
+    expect(find.text('Calibrator · Admin'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Gerakan dan kontrol'),
       200,
