@@ -19,6 +19,7 @@ class IsometricBoard extends StatefulWidget {
 class _IsometricBoardState extends State<IsometricBoard> {
   final TransformationController _transform = TransformationController();
   int? _fittedSceneryId;
+  Size? _fittedViewport;
 
   @override
   void dispose() {
@@ -61,12 +62,22 @@ class _IsometricBoardState extends State<IsometricBoard> {
 
   void resetView() => _transform.value = Matrix4.identity();
 
+  /// Scale at which the whole scenery is visible. Sceneries are far larger than
+  /// a phone screen (a typical one is 3705x2545), so this is well below 1 and
+  /// must not be floored at a fixed minimum or the map never fits.
+  double _fitScaleFor(Size viewport, Scenery scenery) {
+    final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
+    final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
+
+    return math
+        .min(viewport.width / sceneWidth, viewport.height / sceneHeight)
+        .clamp(.02, 1.0);
+  }
+
   void _fitScene(Size viewport, Scenery scenery) {
     final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
     final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
-    final scale = math
-        .min(viewport.width / sceneWidth, viewport.height / sceneHeight)
-        .clamp(.35, 1.0);
+    final scale = _fitScaleFor(viewport, scenery);
     final dx = (viewport.width - sceneWidth * scale) / 2;
     final dy = (viewport.height - sceneHeight * scale) / 2;
     _transform.value = Matrix4.translationValues(dx, dy, 0)
@@ -87,10 +98,15 @@ class _IsometricBoardState extends State<IsometricBoard> {
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            if (_fittedSceneryId != scenery.id) {
+            // Re-fit for a new scenery, and also when the viewport itself
+            // changes shape — rotating into landscape would otherwise keep the
+            // portrait framing and leave the scenery half off-screen.
+            final viewport = constraints.biggest;
+            if (_fittedSceneryId != scenery.id || _fittedViewport != viewport) {
               _fittedSceneryId = scenery.id;
+              _fittedViewport = viewport;
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) _fitScene(constraints.biggest, scenery);
+                if (mounted) _fitScene(viewport, scenery);
               });
             }
             return DragTarget<PaletteBuildingDrag>(
@@ -114,7 +130,8 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     transformationController: _transform,
                     constrained: false,
                     panEnabled: !controller.dragging,
-                    minScale: .35,
+                    // Zooming out is allowed exactly as far as the full map.
+                    minScale: _fitScaleFor(viewport, scenery),
                     maxScale: 3.5,
                     boundaryMargin: const EdgeInsets.all(500),
                     child: GestureDetector(

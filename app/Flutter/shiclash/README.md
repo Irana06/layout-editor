@@ -8,11 +8,14 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Buat base**: pilih TH dan scenery. Draft aktif yang berisi objek disimpan sebagai salinan sebelum permintaan canvas baru dikirim ke editor.
 - **Katalog**: cari bangunan dan filter berdasarkan TH; ketuk kartu untuk membuka detail level, footprint, dan limit jumlah.
 - **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, dan simpan salinan.
+- **Editor landscape**: tombol maximize membuka kanvas satu layar penuh dalam orientasi landscape dengan bilah bangunan di bawah; tombol minimize mengembalikan ke mode potrait.
 - **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
 - **Calibrator · Admin**: kalibrasi grid/origin scenery serta footprint, skala, dan offset building per level. Mendukung zoom/pan, drag langsung, input presisi, undo/redo, reset, salin antar-level, transparansi preview, grid lock, dan proteksi perubahan yang belum disimpan.
 - **Lainnya**: akun dan backup, panduan kontrol, tes koneksi server, salin alamat server, dan informasi aplikasi.
 - **Update**: cek GitHub Release secara otomatis saat aplikasi dibuka atau secara manual dari Lainnya. Tombol download membuka APK release; Android meminta persetujuan instalasi.
+
+Aplikasi dikunci pada orientasi potrait, kecuali layar editor landscape yang melepas kunci tersebut selama route-nya aktif. Sistem UI disembunyikan sementara di mode landscape supaya scenery terlihat penuh; usap dari tepi layar untuk memunculkannya kembali. Bilah bangunan dapat disembunyikan agar kanvas benar-benar bersih, dan kartu bangunan bisa diketuk untuk memilih atau ditarik langsung ke petak tujuan.
 
 Pratinjau layout adalah diagram posisi, bukan render sprite atau footprint sebenarnya. Statistik tempur belum disajikan jika belum ada di model katalog mobile. Fitur generator sengaja belum dibuat; menunggu instruksi pengguna.
 

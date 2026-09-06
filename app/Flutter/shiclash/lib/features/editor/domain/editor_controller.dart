@@ -257,6 +257,36 @@ class EditorController extends ChangeNotifier {
         : 0;
   }
 
+  /// Buildings the current Town Hall can actually place, Town Hall first then
+  /// alphabetical. Shared by the portrait library and the landscape dock so both
+  /// always offer the same set.
+  List<BuildingType> get availableBuildings {
+    final buildings =
+        catalog.buildingTypes.where((type) {
+          final maxLevel = maxLevelFor(type);
+
+          return maxLevel > 0 && type.thumbnailFor(maxLevel) != null;
+        }).toList()..sort((a, b) {
+          if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
+
+          return a.isTownHall ? -1 : 1;
+        });
+
+    return List.unmodifiable(buildings);
+  }
+
+  /// How many more of this building the current Town Hall still allows.
+  /// `null` means the rule sets no ceiling.
+  int? remainingFor(int buildingTypeId) {
+    final limit = maxCountFor(buildingTypeId);
+    if (limit >= 999) return null;
+    final placed = placements
+        .where((item) => item.buildingTypeId == buildingTypeId)
+        .length;
+
+    return (limit - placed).clamp(0, limit);
+  }
+
   void cancelTool() {
     armedBuildingTypeId = null;
     armedLevel = null;

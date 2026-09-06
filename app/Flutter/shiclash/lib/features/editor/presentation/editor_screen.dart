@@ -6,6 +6,7 @@ import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
 import 'package:shiclash/features/editor/presentation/isometric_board.dart';
+import 'package:shiclash/features/editor/presentation/landscape_editor_screen.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
 
 class EditorScreen extends StatefulWidget {
@@ -512,6 +513,15 @@ class _ToolDock extends StatelessWidget {
             active: controller.showGrid,
             onPressed: controller.toggleGrid,
           ),
+          _DockButton(
+            tooltip: 'Mode landscape',
+            icon: Icons.open_in_full_rounded,
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => LandscapeEditorScreen(controller: controller),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -727,18 +737,7 @@ class _BuildingPalette extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buildings =
-        controller.catalog.buildingTypes
-            .where(
-              (type) =>
-                  controller.maxLevelFor(type) > 0 &&
-                  type.thumbnailFor(controller.maxLevelFor(type)) != null,
-            )
-            .toList()
-          ..sort((a, b) {
-            if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
-            return a.isTownHall ? -1 : 1;
-          });
+    final buildings = controller.availableBuildings;
     return Container(
       height: 132,
       decoration: const BoxDecoration(

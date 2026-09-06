@@ -224,4 +224,28 @@ void main() {
     controller.cancelDrag();
     expect(controller.placements.last.gridX, 16);
   });
+
+  test('available buildings list Town Hall first, then alphabetically', () {
+    final names = controller.availableBuildings
+        .map((type) => type.name)
+        .toList();
+
+    expect(names, ['Town Hall', 'Cannon']);
+  });
+
+  test('remaining count drops as copies are placed and is null when uncapped', () {
+    // Cannon is capped at 2 for this Town Hall by the fixture's unlock rule.
+    expect(controller.remainingFor(2), 2);
+
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(4, 6);
+    expect(controller.remainingFor(2), 1);
+
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(12, 12);
+    expect(controller.remainingFor(2), 0);
+
+    // The Town Hall is always allowed exactly once, never unlimited.
+    expect(controller.remainingFor(1), 1);
+  });
 }
