@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
+import 'package:shiclash/features/editor/domain/wall_connections.dart';
 import 'package:shiclash/features/editor/presentation/building_sprite.dart';
+import 'package:shiclash/features/editor/presentation/wall_connection_painter.dart';
 
 class IsometricBoard extends StatefulWidget {
   const IsometricBoard({required this.controller, super.key});
@@ -61,6 +63,10 @@ class _IsometricBoardState extends State<IsometricBoard> {
         final height = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
         final sorted = [...controller.placements]
           ..sort((a, b) => (a.gridX + a.gridY).compareTo(b.gridX + b.gridY));
+        final wallConnections = WallConnectionIndex(
+          controller.placements,
+          controller.typeFor,
+        );
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -117,6 +123,16 @@ class _IsometricBoardState extends State<IsometricBoard> {
                                 painter: _PlacementGroundPainter(
                                   scenery,
                                   controller,
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: CustomPaint(
+                                painter: WallConnectionPainter(
+                                  scenery: scenery,
+                                  connections: wallConnections,
                                 ),
                               ),
                             ),
@@ -244,6 +260,9 @@ class _PlacementGroundPainter extends CustomPainter {
       scenery.gridSize.toDouble(),
     );
     for (final placement in controller.placements) {
+      final isWall = isWallBuilding(
+        controller.typeFor(placement.buildingTypeId),
+      );
       final footprint = controller.footprint(placement);
       final area = Rect.fromLTWH(
         placement.gridX.toDouble(),
@@ -257,31 +276,34 @@ class _PlacementGroundPainter extends CustomPainter {
         (area.right + 1).clamp(map.left, map.right),
         (area.bottom + 1).clamp(map.top, map.bottom),
       );
-      final outer = _points(buffer);
       final inner = _points(area);
-      final deploymentRing = Path()
-        ..fillType = PathFillType.evenOdd
-        ..addPolygon(outer, true)
-        ..addPolygon(inner, true);
-      canvas.drawPath(
-        deploymentRing,
-        Paint()
-          ..color = Colors.white.withValues(alpha: .10)
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawPath(
-        Path()..addPolygon(outer, true),
-        Paint()
-          ..color = Colors.white.withValues(alpha: .55)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.25,
-      );
+      if (!isWall) {
+        final outer = _points(buffer);
+        final deploymentRing = Path()
+          ..fillType = PathFillType.evenOdd
+          ..addPolygon(outer, true)
+          ..addPolygon(inner, true);
+        canvas.drawPath(
+          deploymentRing,
+          Paint()
+            ..color = Colors.white.withValues(alpha: .10)
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawPath(
+          Path()..addPolygon(outer, true),
+          Paint()
+            ..color = Colors.white.withValues(alpha: .55)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.25,
+        );
+      }
 
       final ground = Path()..addPolygon(inner, true);
       canvas.drawPath(
         ground,
         Paint()
-          ..color = const Color(0xFF315D21).withValues(alpha: .34)
+          ..color = const Color(0xFF315D21)
+              .withValues(alpha: isWall ? .22 : .34)
           ..style = PaintingStyle.fill,
       );
       _drawGrass(canvas, area, ground);
