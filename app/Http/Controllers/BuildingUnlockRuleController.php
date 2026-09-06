@@ -7,7 +7,6 @@ use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -85,10 +84,9 @@ class BuildingUnlockRuleController extends Controller
             ['max_building_level', 'max_count', 'updated_at'],
         );
 
-        // Rules are inherited forward once. Editing a later TH writes its own
-        // row, and this insert-ignore deliberately preserves that override.
-        // Keeping copies in the table (rather than resolving inheritance at
-        // read time) lets every TH be adjusted independently in the calibrator.
+        // Rules are inherited forward into rows that are still reset (level 0)
+        // or absent. This covers THs initialised by an older partial save while
+        // preserving any active customisation at a later Town Hall.
         $futureTownHallLevels = BuildingLevel::query()
             ->whereHas('type', fn ($query) => $query->where('is_town_hall', true))
             ->where('level', '>', $thLevel)
@@ -97,18 +95,37 @@ class BuildingUnlockRuleController extends Controller
             ->unique()
             ->values();
         if ($futureTownHallLevels->isNotEmpty()) {
-            DB::table('building_unlock_rules')->insertOrIgnore(
-                $futureTownHallLevels->flatMap(fn (int $futureLevel) => $rules->map(
-                    fn (array $rule): array => [
+            $activeRules = $rules
+                ->filter(fn (array $rule): bool => $rule['max_building_level'] > 0)
+                ->values();
+            $futureRuleMap = BuildingUnlockRule::query()
+                ->whereIn('th_level', $futureTownHallLevels)
+                ->whereIn('building_type_id', $typeIds)
+                ->get()
+                ->keyBy(fn (BuildingUnlockRule $rule): string => "{$rule->th_level}:{$rule->building_type_id}");
+            $inherited = $futureTownHallLevels->flatMap(function (int $futureLevel) use ($activeRules, $futureRuleMap, $now) {
+                return $activeRules
+                    ->filter(function (array $rule) use ($futureLevel, $futureRuleMap): bool {
+                        $existing = $futureRuleMap->get("{$futureLevel}:{$rule['building_type_id']}");
+
+                        return $existing === null || $existing->max_building_level <= 0;
+                    })
+                    ->map(fn (array $rule): array => [
                         'building_type_id' => $rule['building_type_id'],
                         'th_level' => $futureLevel,
                         'max_building_level' => $rule['max_building_level'],
                         'max_count' => $rule['max_count'],
                         'created_at' => $now,
                         'updated_at' => $now,
-                    ],
-                ))->all(),
-            );
+                    ]);
+            });
+            if ($inherited->isNotEmpty()) {
+                BuildingUnlockRule::query()->upsert(
+                    $inherited->all(),
+                    ['building_type_id', 'th_level'],
+                    ['max_building_level', 'max_count', 'updated_at'],
+                );
+            }
         }
 
         $affectedTownHallLevels = $futureTownHallLevels->prepend($thLevel);

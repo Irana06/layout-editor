@@ -291,6 +291,14 @@ class MobileCalibrationTest extends TestCase
         foreach ([4, 5, 6] as $level) {
             BuildingLevel::create(['building_type_id' => $townHall->id, 'level' => $level, 'file_path' => "th-{$level}.png"]);
         }
+        // TH 5 was created by an older partial sync: a reset row must be
+        // treated like an empty one when TH 4 later unlocks this building.
+        BuildingUnlockRule::create([
+            'building_type_id' => $cannon->id,
+            'th_level' => 5,
+            'max_building_level' => 0,
+            'max_count' => 0,
+        ]);
         BuildingUnlockRule::create([
             'building_type_id' => $cannon->id,
             'th_level' => 6,

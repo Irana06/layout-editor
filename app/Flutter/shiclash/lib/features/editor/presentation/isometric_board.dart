@@ -361,7 +361,7 @@ class _PlacementGroundPainter extends CustomPainter {
       (area.bottom + 1).clamp(map.top, map.bottom),
     );
     final inner = _points(area);
-    if (showRing && !isWall) {
+    if (showRing) {
       final outer = _points(buffer);
       final deploymentRing = Path()
         ..fillType = PathFillType.evenOdd

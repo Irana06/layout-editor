@@ -647,10 +647,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                           ),
                         ),
                       if (_building && (_type?.levels.length ?? 0) > 1)
-                        OutlinedButton(
-                          onPressed: _saving ? null : _copyLevel,
-                          child: const Text('Salin posisi & skala'),
-                        ),
+                        ...[
+                          if (_previousLevel != null)
+                            OutlinedButton.icon(
+                              onPressed: _saving ? null : _syncPreviousLevel,
+                              icon: const Icon(Icons.sync, size: 18),
+                              label: Text(
+                                'Sync dari Lv. ${_previousLevel!.level}',
+                              ),
+                            ),
+                          OutlinedButton(
+                            onPressed: _saving ? null : _copyLevel,
+                            child: const Text('Salin level lain'),
+                          ),
+                        ],
                     ],
                   ),
                 ],
@@ -863,6 +873,48 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (source != null && mounted) {
       _draft!.change(source.visualCalibrationValues());
     }
+  }
+
+  BuildingLevel? get _previousLevel {
+    final current = _level;
+    if (current == null) return null;
+    final earlier = _type!.levels
+        .where((level) => level.level < current.level)
+        .toList()
+      ..sort((a, b) => a.level.compareTo(b.level));
+    return earlier.isEmpty ? null : earlier.last;
+  }
+
+  Future<void> _syncPreviousLevel() async {
+    final source = _previousLevel;
+    final current = _level;
+    if (source == null || current == null || _saving) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Sync dari Level ${source.level}?'),
+            content: Text(
+              'Skala serta posisi Level ${current.level} akan mengikuti Level ${source.level}. Footprint dan ring deployment tidak diubah.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.sync),
+                label: const Text('Ya, sync'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    _draft!.change(source.visualCalibrationValues());
+    setState(() {
+      _status = 'Skala dan posisi disalin dari Level ${source.level}; periksa preview lalu simpan.';
+    });
   }
 
   void _help() => showDialog<void>(

@@ -42,6 +42,11 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
       .where((type) => !type.isTownHall && type.levels.isNotEmpty)
       .toList();
 
+  int? get _previousTownHallLevel {
+    final earlier = _townHallLevels.where((level) => level < _townHallLevel);
+    return earlier.isEmpty ? null : earlier.last;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +108,59 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
     setState(() {
       _drafts = {..._drafts, typeId: value};
       _message = null;
+    });
+  }
+
+  /// Bring a folder forward from the immediately previous Town Hall without
+  /// overwriting a rule that has already been configured here.  A level of 0
+  /// is the editor's reset/unavailable state, so it is safe to fill from the
+  /// prior TH only after the owner explicitly confirms it.
+  Future<void> _syncFolderFromPrevious(
+    String category,
+    List<BuildingType> buildings,
+  ) async {
+    final previous = _previousTownHallLevel;
+    if (_saving || previous == null) return;
+    final candidates = buildings.where((type) {
+      final current = _drafts[type.id];
+      final source = _ruleFor(type.id, previous);
+      return (current?.maxLevel ?? 0) == 0 && source.maxLevel > 0;
+    }).toList();
+    if (candidates.isEmpty) {
+      setState(() {
+        _message = 'Tidak ada aturan ${_title(category)} yang masih reset untuk disinkronkan dari TH $previous.';
+      });
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Sync ${_title(category)} dari TH $previous?'),
+            content: Text(
+              '${candidates.length} aturan yang masih level 0 di TH $_townHallLevel akan mengikuti level dan jumlah dari TH $previous. Aturan yang sudah aktif tidak diubah.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.sync),
+                label: const Text('Ya, sync'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed || !mounted) return;
+    setState(() {
+      _drafts = {
+        ..._drafts,
+        for (final type in candidates)
+          type.id: _ruleFor(type.id, previous).copy(),
+      };
+      _message = '${candidates.length} aturan ${_title(category)} mengikuti TH $previous. Tekan Simpan aturan TH untuk menerapkan.';
     });
   }
 
@@ -218,7 +276,26 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
               subtitle: Text(
                 '${entry.value.where((type) => (_drafts[type.id]?.maxLevel ?? 0) > 0).length}/${entry.value.length} tersedia',
               ),
-              children: [for (final type in entry.value) _ruleTile(type)],
+              children: [
+                if (_previousTownHallLevel != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                      child: OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => _syncFolderFromPrevious(
+                                entry.key,
+                                entry.value,
+                              ),
+                        icon: const Icon(Icons.sync, size: 18),
+                        label: Text('Sync yang reset dari TH $_previousTownHallLevel'),
+                      ),
+                    ),
+                  ),
+                for (final type in entry.value) _ruleTile(type),
+              ],
             ),
           ),
         if (_message != null) ...[
