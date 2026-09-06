@@ -15,6 +15,7 @@ class FakeCalibrationApi extends CalibrationApi {
   bool failSave = false;
   Map<String, dynamic>? saved;
   String? savedPath;
+  final requests = <({String path, Map<String, dynamic>? body})>[];
   final scenery = <String, dynamic>{
     'id': 1,
     'name': 'Classic',
@@ -110,6 +111,7 @@ class FakeCalibrationApi extends CalibrationApi {
     if (failSave) throw const CalibrationException('Tidak dapat terhubung.', 0);
     savedPath = path;
     saved = body;
+    requests.add((path: path, body: body));
     if (path == 'admin/unlock-rules') {
       return {
         'unlockRules': [
@@ -119,6 +121,30 @@ class FakeCalibrationApi extends CalibrationApi {
               'th_level': body?['th_level'],
             },
         ],
+      };
+    }
+    if (path.startsWith('admin/building-types/')) {
+      return {
+        'buildingType': {
+          'id': 9,
+          'name': 'Town Hall',
+          'category': 'town_hall',
+          'default_grid_width': body?['grid_size'],
+          'default_grid_height': body?['grid_size'],
+          'levels': const [],
+        },
+      };
+    }
+    if (path.startsWith('admin/building-levels/')) {
+      return {
+        'buildingLevel': {
+          'id': 9,
+          'level': 1,
+          'image_url': 'https://example.com/town-hall.png',
+          'scale': body?['scale'] ?? 1,
+          'offset_x': body?['offset_x'] ?? 0,
+          'offset_y': body?['offset_y'] ?? 0,
+        },
       };
     }
     return {
@@ -271,6 +297,54 @@ void main() {
     await tester.tap(find.text('Cannon · Level 1'));
     await tester.pumpAndSettle();
     expect(find.text('Cannon · Level 1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('building footprint is saved once as a shared square size', (
+    tester,
+  ) async {
+    final api = FakeCalibrationApi();
+    await open(tester, api);
+    await tester.tap(find.text('Building'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(
+      find.text('Ukuran footprint (tile)'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(
+      find
+          .ancestor(
+            of: find.text('Ukuran footprint (tile)'),
+            matching: find.byType(InkWell),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), '5');
+    await tester.tap(find.text('Terapkan'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('5 × 5 tile'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text('Simpan kalibrasi'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('Simpan kalibrasi'));
+    await tester.pumpAndSettle();
+
+    final footprint = api.requests.firstWhere(
+      (request) => request.path == 'admin/building-types/9/footprint',
+    );
+    final visual = api.requests.firstWhere(
+      (request) => request.path == 'admin/building-levels/9',
+    );
+    expect(footprint.body, {'grid_size': 5});
+    expect(visual.body, {'scale': 1.0, 'offset_x': 0.0, 'offset_y': 0.0});
+    expect(visual.body!.containsKey('grid_width'), isFalse);
+    expect(visual.body!.containsKey('grid_height'), isFalse);
     expect(tester.takeException(), isNull);
   });
 }

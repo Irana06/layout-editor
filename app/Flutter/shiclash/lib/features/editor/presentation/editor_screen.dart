@@ -590,17 +590,18 @@ class _BuildingPalette extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final buildings = controller.catalog.buildingTypes
-        .where(
-          (type) =>
-              controller.maxLevelFor(type) > 0 &&
-              type.thumbnailFor(controller.maxLevelFor(type)) != null,
-        )
-        .toList()
-      ..sort((a, b) {
-        if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
-        return a.isTownHall ? -1 : 1;
-      });
+    final buildings =
+        controller.catalog.buildingTypes
+            .where(
+              (type) =>
+                  controller.maxLevelFor(type) > 0 &&
+                  type.thumbnailFor(controller.maxLevelFor(type)) != null,
+            )
+            .toList()
+          ..sort((a, b) {
+            if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
+            return a.isTownHall ? -1 : 1;
+          });
     return Container(
       height: 132,
       decoration: const BoxDecoration(

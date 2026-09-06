@@ -46,11 +46,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   @override
   void initState() {
     super.initState();
-    _api =
-        widget.api ??
-        CalibrationApi(
-          idToken: widget.account.apiToken,
-        );
+    _api = widget.api ?? CalibrationApi(idToken: widget.account.apiToken);
     _load();
   }
 
@@ -517,9 +513,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                             ? _scenery!
                             : _scenery!.withCalibration(_draft!.values),
                         type: _building ? _type : null,
-                        level: _building
-                            ? _previewLevel()
-                            : null,
+                        level: _building ? _previewLevel() : null,
                         editMode: _edit && !_locked && !_saving,
                         showGrid: _grid,
                         opacity: _opacity,
@@ -797,10 +791,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                 padding: const EdgeInsets.only(top: 4),
                 child: Text(
                   '${_draftFootprintSize()} × ${_draftFootprintSize()} tile · diterapkan ke semua level ${_type!.name}. Skala dan offset tetap khusus level ini.',
-                  style: const TextStyle(
-                    color: AppColors.muted,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
               ),
               number('Skala gambar', 'scale', .1, 5, .01),
