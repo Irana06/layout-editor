@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\BootstrapController;
 use App\Http\Controllers\Api\V1\MobileAuthController;
+use App\Http\Controllers\Api\V1\SharedLayoutController;
 use App\Http\Controllers\BuildingLevelController;
 use App\Http\Controllers\BuildingTypeController;
 use App\Http\Controllers\BuildingUnlockRuleController;
@@ -22,6 +23,15 @@ Route::prefix('v1')->group(function (): void {
     ]))->name('api.v1.index');
 
     Route::get('/bootstrap', BootstrapController::class)->name('api.v1.bootstrap');
+
+    // Sharing needs no account: the snapshot belongs to whoever holds the link.
+    Route::post('/layouts/share', [SharedLayoutController::class, 'store'])
+        ->middleware('throttle:20,1')
+        ->name('api.v1.layouts.share');
+    Route::get('/layouts/shared/{code}', [SharedLayoutController::class, 'show'])
+        ->middleware('throttle:120,1')
+        ->name('api.v1.layouts.shared');
+
     Route::post('/auth/google', [MobileAuthController::class, 'store'])
         ->middleware('throttle:10,1');
 
