@@ -351,6 +351,46 @@ class _PlacementGroundPainter extends CustomPainter {
         preview: true,
       );
     }
+    _drawAttackRange(canvas);
+  }
+
+  /// Rings showing what the selected defence covers, the way the game does:
+  /// an outer reach and, for mortars and the like, an inner blind spot.
+  void _drawAttackRange(Canvas canvas) {
+    final placement = controller.selectedPlacement;
+    if (placement == null) return;
+    final type = controller.typeFor(placement.buildingTypeId);
+    if (type == null || type.attackRangeMax <= 0) return;
+
+    final footprint = controller.footprint(placement);
+    final centre = isoPoint(
+      scenery,
+      placement.gridX + footprint.width / 2,
+      placement.gridY + footprint.height / 2,
+    );
+
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = Colors.white.withValues(alpha: .85);
+    final fill = Paint()..color = Colors.white.withValues(alpha: .07);
+
+    void ring(int range, {required bool filled}) {
+      if (range <= 0) return;
+      // A circle on the ground is an ellipse on screen; the tile grid is twice
+      // as wide as it is tall, so the two axes scale by their own tile size.
+      final radius = type.ringRadius(range);
+      final box = Rect.fromCenter(
+        center: centre,
+        width: radius * scenery.tileWidth * math.sqrt2,
+        height: radius * scenery.tileHeight * math.sqrt2,
+      );
+      if (filled) canvas.drawOval(box, fill);
+      canvas.drawOval(box, stroke);
+    }
+
+    ring(type.attackRangeMax, filled: true);
+    ring(type.attackRangeMin, filled: false);
   }
 
   void _drawPlacement(

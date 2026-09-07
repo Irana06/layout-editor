@@ -130,6 +130,8 @@ class BuildingType {
     required this.defaultGridHeight,
     required this.levels,
     this.showsDeploymentRing = true,
+    this.attackRangeMin = 0,
+    this.attackRangeMax = 0,
   });
 
   factory BuildingType.fromJson(Map<String, dynamic> json) => BuildingType(
@@ -144,6 +146,8 @@ class BuildingType {
         ? _defaultDeploymentRing(json)
         : json['shows_deployment_ring'] == true ||
               json['shows_deployment_ring'] == 1,
+    attackRangeMin: _int(json['attack_range_min']),
+    attackRangeMax: _int(json['attack_range_max']),
     levels: _list(json['levels'])
         .map((item) => BuildingLevel.fromJson(item))
         .toList(growable: false),
@@ -157,7 +161,39 @@ class BuildingType {
   final int defaultGridWidth;
   final int defaultGridHeight;
   final bool showsDeploymentRing;
+
+  /// Attack range in tiles, counted outward from the footprint's edge tiles:
+  /// 1 is the ring of tiles touching the building. Zero means no range at all,
+  /// so nothing is drawn. A non-zero [attackRangeMin] is a blind spot.
+  final int attackRangeMin;
+  final int attackRangeMax;
   final List<BuildingLevel> levels;
+
+  /// Radius of a range ring in tiles, measured from the building's centre to
+  /// the centre of the tile at that distance — which is where the game draws
+  /// it. Half the footprint gets it clear of the building itself.
+  double ringRadius(int range) => (defaultGridWidth - 1) / 2 + range;
+
+  BuildingType copyWith({
+    int? defaultGridWidth,
+    int? defaultGridHeight,
+    bool? showsDeploymentRing,
+    int? attackRangeMin,
+    int? attackRangeMax,
+    List<BuildingLevel>? levels,
+  }) => BuildingType(
+    id: id,
+    name: name,
+    category: category,
+    subfolder: subfolder,
+    isTownHall: isTownHall,
+    defaultGridWidth: defaultGridWidth ?? this.defaultGridWidth,
+    defaultGridHeight: defaultGridHeight ?? this.defaultGridHeight,
+    showsDeploymentRing: showsDeploymentRing ?? this.showsDeploymentRing,
+    attackRangeMin: attackRangeMin ?? this.attackRangeMin,
+    attackRangeMax: attackRangeMax ?? this.attackRangeMax,
+    levels: levels ?? this.levels,
+  );
 
   BuildingLevel? thumbnailFor(int maxLevel) {
     BuildingLevel? result;
@@ -174,43 +210,22 @@ class BuildingType {
 
   /// A footprint belongs to the building family, not to one sprite level.
   /// Level-specific visual calibration remains intact when this changes.
-  BuildingType withSharedFootprint(int size) => BuildingType(
-    id: id,
-    name: name,
-    category: category,
-    subfolder: subfolder,
-    isTownHall: isTownHall,
+  BuildingType withSharedFootprint(int size) => copyWith(
     defaultGridWidth: size,
     defaultGridHeight: size,
-    showsDeploymentRing: showsDeploymentRing,
     levels: levels
         .map((level) => level.withFootprint(width: null, height: null))
         .toList(growable: false),
   );
 
-  BuildingType withLevels(List<BuildingLevel> values) => BuildingType(
-    id: id,
-    name: name,
-    category: category,
-    subfolder: subfolder,
-    isTownHall: isTownHall,
-    defaultGridWidth: defaultGridWidth,
-    defaultGridHeight: defaultGridHeight,
-    showsDeploymentRing: showsDeploymentRing,
-    levels: List.unmodifiable(values),
-  );
+  BuildingType withLevels(List<BuildingLevel> values) =>
+      copyWith(levels: List.unmodifiable(values));
 
-  BuildingType withDeploymentRing(bool value) => BuildingType(
-    id: id,
-    name: name,
-    category: category,
-    subfolder: subfolder,
-    isTownHall: isTownHall,
-    defaultGridWidth: defaultGridWidth,
-    defaultGridHeight: defaultGridHeight,
-    showsDeploymentRing: value,
-    levels: levels,
-  );
+  BuildingType withDeploymentRing(bool value) =>
+      copyWith(showsDeploymentRing: value);
+
+  BuildingType withAttackRange({int? min, int? max}) =>
+      copyWith(attackRangeMin: min, attackRangeMax: max);
 }
 
 class BuildingLevel {

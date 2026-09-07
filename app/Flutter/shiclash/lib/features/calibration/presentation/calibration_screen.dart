@@ -120,6 +120,8 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       ...level.visualCalibrationValues(),
       'grid_size': type.defaultGridWidth,
       'shows_deployment_ring': type.showsDeploymentRing,
+      'attack_range_min': type.attackRangeMin,
+      'attack_range_max': type.attackRangeMax,
     };
   }
 
@@ -198,12 +200,28 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             draft.values['shows_deployment_ring'] as bool? ??
             originalType.showsDeploymentRing;
 
-        if (showsRing != originalType.showsDeploymentRing) {
+        final rangeMin =
+            draft.values['attack_range_min'] as int? ??
+            originalType.attackRangeMin;
+        final rangeMax =
+            draft.values['attack_range_max'] as int? ??
+            originalType.attackRangeMax;
+        final rangeChanged =
+            rangeMin != originalType.attackRangeMin ||
+            rangeMax != originalType.attackRangeMax;
+
+        if (showsRing != originalType.showsDeploymentRing || rangeChanged) {
           await _api.request(
             'admin/building-types/${originalType.id}',
-            body: {'shows_deployment_ring': showsRing},
+            body: {
+              'shows_deployment_ring': showsRing,
+              'attack_range_min': rangeMin,
+              'attack_range_max': rangeMax,
+            },
           );
-          updatedType = updatedType.withDeploymentRing(showsRing);
+          updatedType = updatedType
+              .withDeploymentRing(showsRing)
+              .withAttackRange(min: rangeMin, max: rangeMax);
         }
 
         if (originalType.defaultGridWidth != footprintSize ||
@@ -612,6 +630,46 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                         'Tampilkan area putih satu tile di luar footprint. Matikan untuk traps dan Hidden Tesla.',
                       ),
                     ),
+                  if (_building) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Jangkauan serangan (tile)',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Dihitung dari petak tepi bangunan. Maksimal 0 berarti bangunan ini tidak menyerang dan tidak menampilkan ring. Isi minimal hanya untuk bangunan bertitik buta seperti Mortar.',
+                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RangeField(
+                            label: 'Minimal',
+                            value:
+                                _draft!.values['attack_range_min'] as int? ??
+                                _type!.attackRangeMin,
+                            enabled: !_saving && !_locked,
+                            onChanged: (value) =>
+                                _draft!.change({'attack_range_min': value}),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _RangeField(
+                            label: 'Maksimal',
+                            value:
+                                _draft!.values['attack_range_max'] as int? ??
+                                _type!.attackRangeMax,
+                            enabled: !_saving && !_locked,
+                            onChanged: (value) =>
+                                _draft!.change({'attack_range_max': value}),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -1042,4 +1100,35 @@ class _NumberControlState extends State<_NumberControl> {
       ],
     ),
   );
+}
+
+/// Whole-tile range input. Kept to a plain number field rather than a slider
+/// because these are exact values read off the game, not things to eyeball.
+class _RangeField extends StatelessWidget {
+  const _RangeField({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final bool enabled;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      key: ValueKey('$label-$value'),
+      initialValue: value.toString(),
+      enabled: enabled,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(labelText: label, isDense: true),
+      onChanged: (text) {
+        final parsed = int.tryParse(text.trim());
+        if (parsed != null && parsed >= 0 && parsed <= 40) onChanged(parsed);
+      },
+    );
+  }
 }

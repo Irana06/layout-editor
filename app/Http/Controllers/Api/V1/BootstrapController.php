@@ -45,6 +45,7 @@ class BootstrapController extends Controller
                 ...$type->only([
                     'id', 'name', 'category', 'subfolder', 'is_town_hall',
                     'default_grid_width', 'default_grid_height', 'shows_deployment_ring',
+                    'attack_range_min', 'attack_range_max',
                 ]),
                 'levels' => $type->levels->map(fn (BuildingLevel $level): array => [
                     ...$level->toArray(),

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 class BuildingType extends Model
 {
     protected $fillable = [
-        'name', 'category', 'subfolder', 'is_town_hall', 'default_grid_width', 'default_grid_height', 'shows_deployment_ring',
+        'name', 'category', 'subfolder', 'is_town_hall', 'default_grid_width', 'default_grid_height', 'shows_deployment_ring', 'attack_range_min', 'attack_range_max',
     ];
 
     protected function casts(): array

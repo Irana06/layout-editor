@@ -313,20 +313,29 @@ void main() {
       250,
       scrollable: find.byType(Scrollable).first,
     );
-    // The calibration save bar is fixed at the bottom of the screen. Move the
-    // whole control clear of that bar before tapping its InkWell.
-    await tester.drag(find.byType(ListView).first, const Offset(0, -160));
+    // The calibration save bar is fixed at the bottom of the screen, so the
+    // control has to clear it before its InkWell can be tapped. Scrolling to
+    // the control itself keeps this working as the panel above it grows.
+    final footprintControl = find
+        .ancestor(
+          of: find.text('Ukuran footprint (tile)'),
+          matching: find.byType(InkWell),
+        )
+        .first;
+    await tester.drag(find.byType(ListView).first, const Offset(0, -2000));
     await tester.pumpAndSettle();
-    await tester.tap(
-      find
-          .ancestor(
-            of: find.text('Ukuran footprint (tile)'),
-            matching: find.byType(InkWell),
-          )
-          .first,
+    await tester.ensureVisible(footprintControl);
+    await tester.pumpAndSettle();
+    await tester.tap(footprintControl);
+    await tester.pumpAndSettle();
+    // Scoped to the dialog: the panel behind it also carries range fields.
+    await tester.enterText(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextFormField),
+      ),
+      '5',
     );
-    await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextFormField), '5');
     await tester.tap(find.text('Terapkan'));
     await tester.pumpAndSettle();
     expect(find.textContaining('5 × 5 tile'), findsOneWidget);
