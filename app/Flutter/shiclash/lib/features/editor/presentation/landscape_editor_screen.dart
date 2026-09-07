@@ -18,6 +18,8 @@ class LandscapeEditorScreen extends StatefulWidget {
   const LandscapeEditorScreen({
     required this.controller,
     this.readOnly = false,
+    this.onCopy,
+    this.copied = false,
     super.key,
   });
 
@@ -26,6 +28,11 @@ class LandscapeEditorScreen extends StatefulWidget {
   /// Viewing a shared layout: the building dock and editing tools step aside,
   /// leaving pan, zoom, and tapping a building to read its details.
   final bool readOnly;
+
+  /// Take a copy of the layout being viewed. Offered here as well as in
+  /// portrait so deciding to keep a base does not cost a trip back.
+  final Future<void> Function()? onCopy;
+  final bool copied;
 
   @override
   State<LandscapeEditorScreen> createState() => _LandscapeEditorScreenState();
@@ -101,7 +108,11 @@ class _LandscapeEditorScreenState extends State<LandscapeEditorScreen> {
                 right: 10,
                 child: SafeArea(
                   child: widget.readOnly
-                      ? _ReadOnlyTools(onMinimize: _minimize)
+                      ? _ReadOnlyTools(
+                          onMinimize: _minimize,
+                          onCopy: widget.onCopy,
+                          copied: widget.copied,
+                        )
                       : _LandscapeTools(
                           controller: controller,
                           dockOpen: _dockOpen,
@@ -429,9 +440,15 @@ class _DockCard extends StatelessWidget {
 /// Landscape controls for a shared layout: nothing to undo, nothing to place,
 /// so only the way back to portrait remains.
 class _ReadOnlyTools extends StatelessWidget {
-  const _ReadOnlyTools({required this.onMinimize});
+  const _ReadOnlyTools({
+    required this.onMinimize,
+    required this.onCopy,
+    required this.copied,
+  });
 
   final Future<void> Function() onMinimize;
+  final Future<void> Function()? onCopy;
+  final bool copied;
 
   @override
   Widget build(BuildContext context) {
@@ -441,11 +458,22 @@ class _ReadOnlyTools extends StatelessWidget {
         border: Border.all(color: AppColors.line),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: _ToolIcon(
-        icon: Icons.close_fullscreen_rounded,
-        tooltip: 'Kembali ke mode potrait',
-        onPressed: () => onMinimize(),
-        active: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onCopy != null)
+            _ToolIcon(
+              icon: copied ? Icons.check_rounded : Icons.copy_all_rounded,
+              tooltip: copied ? 'Tersimpan di Layouts' : 'Salin layout ini',
+              onPressed: copied ? null : () => onCopy!(),
+            ),
+          _ToolIcon(
+            icon: Icons.close_fullscreen_rounded,
+            tooltip: 'Kembali ke mode potrait',
+            onPressed: () => onMinimize(),
+            active: true,
+          ),
+        ],
       ),
     );
   }

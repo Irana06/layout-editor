@@ -87,6 +87,24 @@ class _IsometricBoardState extends State<IsometricBoard> {
         .clamp(.02, 1.0);
   }
 
+  /// Slack the pan boundary needs so the fitted scenery can sit centred.
+  ///
+  /// A scenery rarely matches the screen's shape, so fitting it leaves bars on
+  /// one axis. With no slack that centred position is outside the boundary,
+  /// and the first touch would snap the map somewhere else — this grants
+  /// exactly the bar's width and nothing more, keeping the view inside the
+  /// scenery while letting it rest where it is placed.
+  EdgeInsets _boundaryFor(Size viewport, Scenery scenery) {
+    final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
+    final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
+    final scale = _fitScaleFor(viewport, scenery);
+
+    return EdgeInsets.symmetric(
+      horizontal: math.max(0, (viewport.width / scale - sceneWidth) / 2),
+      vertical: math.max(0, (viewport.height / scale - sceneHeight) / 2),
+    );
+  }
+
   void _fitScene(Size viewport, Scenery scenery) {
     final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
     final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
@@ -149,7 +167,7 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     // void with nothing to aim at.
                     minScale: _fitScaleFor(viewport, scenery),
                     maxScale: 3.5,
-                    boundaryMargin: EdgeInsets.zero,
+                    boundaryMargin: _boundaryFor(viewport, scenery),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTapUp: _tap,

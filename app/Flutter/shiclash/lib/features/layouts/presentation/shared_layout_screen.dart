@@ -81,7 +81,10 @@ class _SharedLayoutScreenState extends State<SharedLayoutScreen> {
 
   Future<void> _copyToCollection() async {
     final shared = _shared;
-    if (shared == null) return;
+    // Guarded here rather than only on the button: the landscape view is a
+    // pushed route holding the flag's value from when it opened, so it cannot
+    // notice a copy made after that.
+    if (shared == null || _copied) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.drafts.saveShared(shared.title, shared.toLayout());
@@ -115,6 +118,8 @@ class _SharedLayoutScreenState extends State<SharedLayoutScreen> {
                   builder: (_) => LandscapeEditorScreen(
                     controller: controller,
                     readOnly: true,
+                    copied: _copied,
+                    onCopy: _copyToCollection,
                   ),
                 ),
               ),
