@@ -171,6 +171,25 @@ class DraftStore extends ChangeNotifier {
     await _persist();
   }
 
+  /// File a layout someone shared into the collection without disturbing the
+  /// canvas — taking a copy should never cost the work in progress.
+  Future<LocalDraft> saveShared(
+    String title,
+    Map<String, dynamic> layout,
+  ) async {
+    await ready;
+    final copy = LocalDraft(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: title.trim().isEmpty ? 'Layout dibagikan' : title.trim(),
+      layout: layout,
+      updatedAt: DateTime.now(),
+    );
+    _saved = [copy, ..._saved];
+    await _persist();
+
+    return copy;
+  }
+
   /// Copy a stored layout, leaving the original and the open canvas untouched.
   Future<void> duplicate(String id) async {
     await ready;

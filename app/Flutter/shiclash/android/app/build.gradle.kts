@@ -36,6 +36,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Host whose /l/ links open the app. Override per build with
+        // -PshareHost=example.com when the site moves to its own domain.
+        manifestPlaceholders["shareHost"] =
+            (project.findProperty("shareHost") as String?)
+                ?: "layout-editor-production.up.railway.app"
     }
 
     signingConfigs {

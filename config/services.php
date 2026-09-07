@@ -38,4 +38,13 @@ return [
         ],
     ],
 
+    // Lets Android open shared links in Shiclash instead of a browser. The
+    // fingerprint is the release keystore's SHA-256, from
+    // `keytool -list -v -keystore <jks> -alias <alias>`. Left unset, the
+    // assetlinks endpoint 404s and links simply open the web page instead.
+    'android' => [
+        'package' => env('ANDROID_PACKAGE', 'com.shiclash.editor'),
+        'sha256_fingerprint' => env('ANDROID_SHA256_FINGERPRINT'),
+    ],
+
 ];

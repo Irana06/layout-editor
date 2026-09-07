@@ -8,9 +8,16 @@ import 'package:shiclash/features/editor/domain/wall_connections.dart';
 import 'package:shiclash/features/editor/presentation/building_sprite.dart';
 
 class IsometricBoard extends StatefulWidget {
-  const IsometricBoard({required this.controller, super.key});
+  const IsometricBoard({
+    required this.controller,
+    this.readOnly = false,
+    super.key,
+  });
 
   final EditorController controller;
+
+  /// Viewing someone else's layout: pan and zoom stay, editing gestures go.
+  final bool readOnly;
 
   @override
   State<IsometricBoard> createState() => _IsometricBoardState();
@@ -138,11 +145,17 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     boundaryMargin: const EdgeInsets.all(double.infinity),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTapUp: _tap,
-                      onLongPressStart: _beginMove,
-                      onLongPressMoveUpdate: _updateMove,
-                      onLongPressEnd: (_) => controller.commitDrag(),
-                      onLongPressCancel: controller.cancelDrag,
+                      onTapUp: widget.readOnly ? null : _tap,
+                      onLongPressStart: widget.readOnly ? null : _beginMove,
+                      onLongPressMoveUpdate: widget.readOnly
+                          ? null
+                          : _updateMove,
+                      onLongPressEnd: widget.readOnly
+                          ? null
+                          : (_) => controller.commitDrag(),
+                      onLongPressCancel: widget.readOnly
+                          ? null
+                          : controller.cancelDrag,
                       child: SizedBox(
                         width: width,
                         height: height,

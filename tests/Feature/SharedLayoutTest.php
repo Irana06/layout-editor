@@ -117,6 +117,38 @@ class SharedLayoutTest extends TestCase
         $this->assertDatabaseCount('layouts', 0);
     }
 
+    public function test_the_link_page_offers_the_app_and_survives_a_bad_code(): void
+    {
+        $scenery = $this->scenery();
+        $type = $this->cannon();
+        $code = $this->postJson('/api/v1/layouts/share', $this->payload($scenery, $type))
+            ->json('data.code');
+
+        $this->get("/l/{$code}")
+            ->assertOk()
+            ->assertSee('Base perang')
+            ->assertSee("shiclash://layout/{$code}", escape: false);
+
+        $this->get('/l/zzzzzz')->assertNotFound()->assertSee('tidak ditemukan');
+    }
+
+    public function test_assetlinks_stays_absent_until_a_fingerprint_is_configured(): void
+    {
+        // Without it Android would verify against nothing, so the link simply
+        // opens the web page instead of claiming to open the app.
+        config(['services.android.sha256_fingerprint' => null]);
+        $this->get('/.well-known/assetlinks.json')->assertNotFound();
+
+        config([
+            'services.android.sha256_fingerprint' => 'AA:BB:CC',
+            'services.android.package' => 'com.shiclash.editor',
+        ]);
+        $this->get('/.well-known/assetlinks.json')
+            ->assertOk()
+            ->assertJsonPath('0.target.package_name', 'com.shiclash.editor')
+            ->assertJsonPath('0.target.sha256_cert_fingerprints.0', 'AA:BB:CC');
+    }
+
     public function test_unknown_or_disabled_codes_are_not_found(): void
     {
         $this->getJson('/api/v1/layouts/shared/zzzzzz')->assertNotFound();

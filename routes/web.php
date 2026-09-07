@@ -8,6 +8,7 @@ use App\Http\Controllers\EditorController;
 use App\Http\Controllers\LayoutController;
 use App\Http\Controllers\PublicLayoutController;
 use App\Http\Controllers\SceneryController;
+use App\Http\Controllers\ShareLinkController;
 use App\Http\Controllers\UnlockRulePageController;
 use Illuminate\Support\Facades\Route;
 
@@ -45,3 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 require __DIR__.'/settings.php';
+
+// Shared layout links. Android usually intercepts these before the browser
+// sees them; this is the fallback for everyone else.
+Route::get('/l/{code}', [ShareLinkController::class, 'show'])->name('share.show');
+Route::get('/.well-known/assetlinks.json', [ShareLinkController::class, 'assetLinks']);

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/core/update/update_service.dart';
@@ -9,7 +12,9 @@ import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/presentation/catalog_screen.dart';
 import 'package:shiclash/features/editor/presentation/editor_screen.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
+import 'package:shiclash/features/layouts/domain/share_link.dart';
 import 'package:shiclash/features/layouts/presentation/layouts_screen.dart';
+import 'package:shiclash/features/layouts/presentation/shared_layout_screen.dart';
 import 'package:shiclash/features/studio/studio_screen.dart';
 import 'package:shiclash/features/studio/more_screen.dart';
 
@@ -46,6 +51,8 @@ class _AppShellState extends State<AppShell> {
   final UpdateService _updates = UpdateService();
   late final GoogleAccountController _account;
   final DriveBackupService _drive = DriveBackupService();
+  final AppLinks _links = AppLinks();
+  StreamSubscription<Uri>? _linkSubscription;
   late bool _continueOffline;
 
   @override
@@ -76,7 +83,39 @@ class _AppShellState extends State<AppShell> {
         onOpenAccount: () => setState(() => _continueOffline = false),
       ),
     ];
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkForUpdate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdate();
+      _listenForSharedLinks();
+    });
+  }
+
+  /// Shared layout links, both the cold start that launched the app and any
+  /// that arrive while it is already running.
+  Future<void> _listenForSharedLinks() async {
+    try {
+      final initial = await _links.getInitialLink();
+      if (initial != null) await _openSharedLink(initial);
+    } catch (_) {
+      // A malformed launch URI is not worth interrupting startup for.
+    }
+    _linkSubscription = _links.uriLinkStream.listen(
+      _openSharedLink,
+      onError: (_) {},
+    );
+  }
+
+  Future<void> _openSharedLink(Uri uri) async {
+    final code = shareCodeFromUri(uri);
+    if (code == null || !mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SharedLayoutScreen(
+          code: code,
+          repository: _repository,
+          drafts: _drafts,
+        ),
+      ),
+    );
   }
 
   void _onAccountChanged() {
@@ -101,6 +140,7 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _linkSubscription?.cancel();
     _account
       ..removeListener(_onAccountChanged)
       ..dispose();

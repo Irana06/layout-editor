@@ -172,6 +172,21 @@ void main() {
     expect(store.active!.id, original);
   });
 
+  test('copying a shared layout does not disturb the open canvas', () async {
+    await store.autosave(layout(3));
+    await store.renameActive('Base saya');
+    final mine = store.active!.id;
+
+    await store.saveShared('Base teman', layout(9));
+
+    expect(store.saved, hasLength(2));
+    expect(store.saved.first.title, 'Base teman');
+    expect(store.saved.first.layout, layout(9));
+    // Still editing my own layout, not the copy I just took.
+    expect(store.active!.id, mine);
+    expect(store.active!.layout, layout(3));
+  });
+
   test(
     'deleting the open layout leaves the canvas as an unnamed draft',
     () async {

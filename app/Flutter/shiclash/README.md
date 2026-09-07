@@ -7,9 +7,9 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Studio**: beranda, lanjutkan draft, buat base, dan akses koleksi.
 - **Buat base**: pilih TH dan scenery. Draft aktif yang berisi objek disimpan sebagai salinan sebelum permintaan canvas baru dikirim ke editor.
 - **Katalog**: cari bangunan dan filter berdasarkan TH; ketuk kartu untuk membuka detail level, footprint, dan limit jumlah.
-- **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, dan simpan salinan.
+- **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, ganti nama layout, dan bagikan. Bangunan yang dipilih menampilkan ring jangkauan serangan bila jangkauannya sudah diisi di Calibrator.
 - **Editor landscape**: tombol maximize membuka kanvas satu layar penuh dalam orientasi landscape dengan bilah bangunan di bawah; tombol minimize mengembalikan ke mode potrait. Kartu detail bangunan yang dipilih tampil sama seperti di potrait, di sudut kiri atas.
-- **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, buka, dan hapus salinan.
+- **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, duplikat, bagikan, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
 - **Calibrator · Admin**: kalibrasi grid/origin scenery serta footprint, skala, dan offset building per level. Mendukung zoom/pan, drag langsung, input presisi, undo/redo, reset, salin antar-level, transparansi preview, grid lock, dan proteksi perubahan yang belum disimpan.
 - **Lainnya**: akun dan backup, panduan kontrol, tes koneksi server, salin alamat server, dan informasi aplikasi.
@@ -23,7 +23,23 @@ Pratinjau layout adalah diagram posisi, bukan render sprite atau footprint seben
 
 Perubahan canvas otomatis disimpan ke `shiclash-drafts-v1.json` di direktori dokumen aplikasi. Draft terakhir dipulihkan setelah katalog berhasil dimuat. Autosave menyimpan placement, TH, dan scenery; riwayat undo dimulai ulang saat draft dibuka.
 
-Gunakan **Simpan salinan** di Editor untuk menyimpan layout bernama. Tab **Layouts** menyediakan draft terakhir serta salinan yang dapat dibuka atau dihapus. Mengedit canvas tidak mengubah salinan yang telah disimpan. Perhatikan status penyimpanan sebelum menutup aplikasi; jika penyimpanan gagal, gunakan tombol coba lagi.
+Beri nama layout lewat judul di Editor untuk menyimpannya ke koleksi; setelah bernama, setiap perubahan langsung tersimpan ke entri yang sama tanpa langkah simpan terpisah. Tab **Layouts** menyediakan draft yang belum diberi nama beserta seluruh layout tersimpan, lengkap dengan duplikat, bagikan, buka, dan hapus. Perhatikan status penyimpanan sebelum menutup aplikasi; jika penyimpanan gagal, gunakan tombol coba lagi.
+
+## Berbagi layout
+
+Tombol bagikan mengunggah **salinan beku** ke Laravel dan menghasilkan tautan `/l/<kode>` berisi enam karakter. Layout di perangkat tetap milikmu dan tetap bisa diedit; perubahan itu tidak ikut ke tautan yang sudah dibagikan. Untuk membagikan versi terbaru, bagikan lagi dan tautan baru akan dibuat. Hanya layout yang kamu bagikan yang naik ke server; sisanya tetap lokal dan Google Drive.
+
+Penerima yang membuka tautan akan masuk ke halaman hanya-baca dan dapat menekan **Salin layout ini** untuk menyimpannya ke koleksi mereka sendiri.
+
+Tautan dikenali dalam dua bentuk: `https://<host>/l/<kode>` untuk Android App Links, dan `shiclash://layout/<kode>` sebagai cadangan yang langsung bekerja tanpa verifikasi domain. Host `https` ditentukan saat build lewat `-PshareHost=domain.com`, dengan Railway sebagai bawaan.
+
+Agar Android membuka tautan `https` langsung di aplikasi, Laravel harus menyajikan `/.well-known/assetlinks.json`. Isi `ANDROID_SHA256_FINGERPRINT` di server dengan sidik jari keystore rilis:
+
+```powershell
+keytool -list -v -keystore android/app/shiclash-release.jks -alias <alias>
+```
+
+Selama variabel itu kosong, endpoint tersebut membalas 404 dan tautan cukup membuka halaman web biasa.
 
 Penulisan dilakukan berurutan melalui file sementara, lalu mengganti file utama. File rusak atau versi yang tidak didukung tidak ditimpa. Draft yang tidak sesuai katalog ditolak sebelum mengganti canvas. Data lokal dapat hilang jika data aplikasi dibersihkan atau aplikasi dihapus, sehingga gunakan menu **Backup** setelah masuk dengan Google.
 
