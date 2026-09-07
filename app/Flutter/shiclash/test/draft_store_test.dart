@@ -123,4 +123,66 @@ void main() {
       expect(store.active!.layout, layout(3));
     },
   );
+
+  test('naming the draft files it in the collection and keeps saving there', () async {
+    await store.autosave(layout(1));
+    expect(store.active!.id, DraftStore.scratchId);
+    expect(store.saved, isEmpty);
+
+    await store.renameActive('Base perang');
+    final id = store.active!.id;
+    expect(id, isNot(DraftStore.scratchId));
+    expect(store.saved.single.title, 'Base perang');
+
+    // Later edits keep landing in the same entry rather than piling up copies.
+    await store.autosave(layout(7));
+    expect(store.saved, hasLength(1));
+    expect(store.saved.single.id, id);
+    expect(store.saved.single.layout, layout(7));
+    expect(store.active!.title, 'Base perang');
+  });
+
+  test(
+    'renaming a stored layout also retitles it on the open canvas',
+    () async {
+      await store.autosave(layout(1));
+      await store.renameActive('Awal');
+
+      await store.rename(store.active!.id, 'Akhir');
+
+      expect(store.active!.title, 'Akhir');
+      expect(store.saved.single.title, 'Akhir');
+    },
+  );
+
+  test('duplicate copies a layout without touching the original', () async {
+    await store.autosave(layout(4));
+    await store.renameActive('Base utama');
+    final original = store.active!.id;
+
+    await store.duplicate(original);
+
+    expect(store.saved, hasLength(2));
+    expect(store.saved.map((item) => item.title), [
+      'Base utama',
+      'Base utama (salinan)',
+    ]);
+    expect(store.saved.last.layout, layout(4));
+    // The canvas keeps editing the original, not the fresh copy.
+    expect(store.active!.id, original);
+  });
+
+  test(
+    'deleting the open layout leaves the canvas as an unnamed draft',
+    () async {
+      await store.autosave(layout(2));
+      await store.renameActive('Sementara');
+
+      await store.delete(store.active!.id);
+
+      expect(store.saved, isEmpty);
+      expect(store.active!.id, DraftStore.scratchId);
+      expect(store.active!.layout, layout(2));
+    },
+  );
 }

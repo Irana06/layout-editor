@@ -404,8 +404,14 @@ class _PlacementGroundPainter extends CustomPainter {
       final footprint = controller.footprint(placement);
       final left = math.max(0, placement.gridX - 1).toInt();
       final top = math.max(0, placement.gridY - 1).toInt();
-      final right = math.min(map.right.toInt(), placement.gridX + footprint.width + 1);
-      final bottom = math.min(map.bottom.toInt(), placement.gridY + footprint.height + 1);
+      final right = math.min(
+        map.right.toInt(),
+        placement.gridX + footprint.width + 1,
+      );
+      final bottom = math.min(
+        map.bottom.toInt(),
+        placement.gridY + footprint.height + 1,
+      );
       for (var x = left; x < right; x++) {
         for (var y = top; y < bottom; y++) {
           cells.add('$x:$y');
@@ -440,7 +446,10 @@ class _PlacementGroundPainter extends CustomPainter {
       final right = isoPoint(scenery, x + 1.0, y.toDouble());
       final bottom = isoPoint(scenery, x + 1.0, y + 1.0);
       final left = isoPoint(scenery, x.toDouble(), y + 1.0);
-      canvas.drawPath(Path()..addPolygon([top, right, bottom, left], true), fill);
+      canvas.drawPath(
+        Path()..addPolygon([top, right, bottom, left], true),
+        fill,
+      );
       if (!contains(x, y - 1)) canvas.drawLine(top, right, outline);
       if (!contains(x + 1, y)) canvas.drawLine(right, bottom, outline);
       if (!contains(x, y + 1)) canvas.drawLine(bottom, left, outline);

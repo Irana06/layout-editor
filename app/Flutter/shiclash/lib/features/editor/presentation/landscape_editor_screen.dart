@@ -76,9 +76,7 @@ class _LandscapeEditorScreenState extends State<LandscapeEditorScreen> {
                 Positioned(
                   top: 10,
                   left: 10,
-                  child: SafeArea(
-                    child: SelectionCard(controller: controller),
-                  ),
+                  child: SafeArea(child: SelectionCard(controller: controller)),
                 ),
               Positioned(
                 top: 10,

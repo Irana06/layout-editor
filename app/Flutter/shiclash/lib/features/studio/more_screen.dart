@@ -339,7 +339,10 @@ class _MoreScreenState extends State<MoreScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Dukung Shiclash', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Dukung Shiclash',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
           const Text(
             'Dukunganmu membantu pengembangan, aset, dan update aplikasi tetap berlanjut.',

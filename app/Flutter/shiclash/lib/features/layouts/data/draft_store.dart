@@ -102,17 +102,60 @@ class DraftStore extends ChangeNotifier {
     }
   }
 
+  /// Id of the untitled working draft, before it is given a name.
+  static const String scratchId = 'autosave';
+
   Future<void> autosave(Map<String, dynamic> layout) async {
     await ready;
-    active = LocalDraft(
-      id: 'autosave',
-      title: 'Draft terakhir',
+    final previous = active;
+    final updated = LocalDraft(
+      id: previous?.id ?? scratchId,
+      title: previous?.title ?? 'Draft terakhir',
       layout: layout,
       updatedAt: DateTime.now(),
     );
+    active = updated;
+
+    // Once the draft has a name it lives in the collection, and every later
+    // edit keeps saving straight into that entry — there is no separate
+    // "save" step to forget.
+    if (updated.id != scratchId) {
+      _saved = _saved
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList();
+    }
     await _persist();
   }
 
+  /// Name the working draft, promoting it into the collection the first time.
+  Future<void> renameActive(String title) async {
+    await ready;
+    final current = active;
+    if (current == null) throw StateError('Belum ada draft');
+    final clean = title.trim();
+    if (clean.isEmpty || clean.length > 100) {
+      throw ArgumentError('Nama harus berisi 1–100 karakter');
+    }
+
+    final promoted = current.id == scratchId;
+    final updated = LocalDraft(
+      id: promoted
+          ? DateTime.now().microsecondsSinceEpoch.toString()
+          : current.id,
+      title: clean,
+      layout: current.layout,
+      updatedAt: DateTime.now(),
+    );
+    active = updated;
+    _saved = promoted
+        ? [updated, ..._saved]
+        : _saved.map((item) => item.id == updated.id ? updated : item).toList();
+    await _persist();
+  }
+
+  /// Snapshot the open canvas into the collection under [title], leaving the
+  /// canvas itself untouched. Used to rescue an unnamed draft that is about to
+  /// be replaced, not as a manual save step.
   Future<void> saveCopy(String title) async {
     await ready;
     if (active == null) throw StateError('Belum ada draft');
@@ -128,9 +171,37 @@ class DraftStore extends ChangeNotifier {
     await _persist();
   }
 
+  /// Copy a stored layout, leaving the original and the open canvas untouched.
+  Future<void> duplicate(String id) async {
+    await ready;
+    final source = _saved.firstWhere(
+      (item) => item.id == id,
+      orElse: () => throw StateError('Layout tidak ditemukan'),
+    );
+    final copy = LocalDraft(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      title: '${source.title} (salinan)',
+      layout: source.layout,
+      updatedAt: DateTime.now(),
+    );
+    final at = _saved.indexOf(source);
+    _saved = [..._saved.take(at + 1), copy, ..._saved.skip(at + 1)];
+    await _persist();
+  }
+
   Future<void> delete(String id) async {
     await ready;
     _saved = _saved.where((item) => item.id != id).toList();
+    // Deleting the layout that is currently open leaves the canvas as an
+    // unnamed draft rather than writing back into an entry that is gone.
+    if (active?.id == id) {
+      active = LocalDraft(
+        id: scratchId,
+        title: 'Draft terakhir',
+        layout: active!.layout,
+        updatedAt: DateTime.now(),
+      );
+    }
     await _persist();
   }
 
@@ -152,7 +223,24 @@ class DraftStore extends ChangeNotifier {
               : item,
         )
         .toList();
+    // The open canvas may be this very layout, so keep its name in step
+    // instead of leaving the editor header showing the old one.
+    if (active?.id == id) {
+      active = LocalDraft(
+        id: id,
+        title: clean,
+        layout: active!.layout,
+        updatedAt: DateTime.now(),
+      );
+    }
     await _persist();
+  }
+
+  /// Make [draft] the document the canvas is editing, so later autosaves write
+  /// back into it instead of into whatever was open before.
+  void adopt(LocalDraft draft) {
+    active = draft;
+    _notify();
   }
 
   // Opening does not overwrite autosave until the editor validates the layout.

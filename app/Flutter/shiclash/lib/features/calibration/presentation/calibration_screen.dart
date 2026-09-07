@@ -581,9 +581,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                         : 'Cubit untuk zoom, geser untuk pan. Aktifkan mode geser untuk mengubah kalibrasi.',
                     style: const TextStyle(color: AppColors.muted),
                   ),
-                  if (_building) ...[
-                    const SizedBox(height: 8),
-                  ],
+                  if (_building) ...[const SizedBox(height: 8)],
                   if (_locked)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
@@ -637,21 +635,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                             _scenery!.locked ? 'Buka kunci' : 'Kunci grid',
                           ),
                         ),
-                      if (_building && (_type?.levels.length ?? 0) > 1)
-                        ...[
-                          if (_previousLevel != null)
-                            OutlinedButton.icon(
-                              onPressed: _saving ? null : _syncPreviousLevel,
-                              icon: const Icon(Icons.sync, size: 18),
-                              label: Text(
-                                'Sync dari Lv. ${_previousLevel!.level}',
-                              ),
+                      if (_building && (_type?.levels.length ?? 0) > 1) ...[
+                        if (_previousLevel != null)
+                          OutlinedButton.icon(
+                            onPressed: _saving ? null : _syncPreviousLevel,
+                            icon: const Icon(Icons.sync, size: 18),
+                            label: Text(
+                              'Sync dari Lv. ${_previousLevel!.level}',
                             ),
-                          OutlinedButton(
-                            onPressed: _saving ? null : _copyLevel,
-                            child: const Text('Salin level lain'),
                           ),
-                        ],
+                        OutlinedButton(
+                          onPressed: _saving ? null : _copyLevel,
+                          child: const Text('Salin level lain'),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -869,10 +866,9 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   BuildingLevel? get _previousLevel {
     final current = _level;
     if (current == null) return null;
-    final earlier = _type!.levels
-        .where((level) => level.level < current.level)
-        .toList()
-      ..sort((a, b) => a.level.compareTo(b.level));
+    final earlier =
+        _type!.levels.where((level) => level.level < current.level).toList()
+          ..sort((a, b) => a.level.compareTo(b.level));
     return earlier.isEmpty ? null : earlier.last;
   }
 
@@ -880,7 +876,8 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     final source = _previousLevel;
     final current = _level;
     if (source == null || current == null || _saving) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text('Sync dari Level ${source.level}?'),
@@ -904,7 +901,8 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
     if (!confirmed || !mounted) return;
     _draft!.change(source.visualCalibrationValues());
     setState(() {
-      _status = 'Skala dan posisi disalin dari Level ${source.level}; periksa preview lalu simpan.';
+      _status =
+          'Skala dan posisi disalin dari Level ${source.level}; periksa preview lalu simpan.';
     });
   }
 

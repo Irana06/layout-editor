@@ -120,6 +120,7 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     try {
       controller.restoreLayout(draft.layout);
       _restoreBlocked = false;
+      widget.drafts.adopt(draft);
       if (identical(widget.drafts.requested, draft)) {
         widget.drafts.requested = null;
       }
@@ -160,12 +161,19 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     }
   }
 
-  Future<void> _saveCopy() async {
-    var name = 'Layout TH ${controller.townHallLevel}';
+  /// Name the open canvas. The first name also files it in the collection;
+  /// after that every edit keeps saving into that same entry.
+  Future<void> _rename() async {
+    final draft = widget.drafts.active;
+    var name = draft == null || draft.id == DraftStore.scratchId
+        ? 'Layout TH ${controller.townHallLevel}'
+        : draft.title;
+    final unnamed = draft == null || draft.id == DraftStore.scratchId;
+
     final title = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Simpan salinan'),
+        title: Text(unnamed ? 'Beri nama layout' : 'Ganti nama layout'),
         content: TextFormField(
           initialValue: name,
           onChanged: (value) => name = value,
@@ -190,10 +198,10 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     if (!mounted || title == null) return;
     try {
       await widget.drafts.autosave(controller.toLayout());
-      await widget.drafts.saveCopy(title);
-      if (mounted) {
+      await widget.drafts.renameActive(title);
+      if (mounted && unnamed) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Salinan tersimpan di Layouts.')),
+          const SnackBar(content: Text('Layout tersimpan di Layouts.')),
         );
       }
     } catch (_) {
@@ -253,15 +261,14 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
                       },
                       icon: const Icon(Icons.refresh),
                     ),
-                  TextButton.icon(
-                    onPressed: _restoreBlocked ? null : _saveCopy,
-                    icon: const Icon(Icons.save_outlined, size: 16),
-                    label: const Text('Simpan salinan'),
-                  ),
                 ],
               ),
             ),
-            _Header(controller: controller),
+            _Header(
+              controller: controller,
+              title: widget.drafts.active?.title ?? 'Draft terakhir',
+              onRename: _restoreBlocked ? () {} : _rename,
+            ),
             Expanded(
               child: Stack(
                 children: [
@@ -297,9 +304,15 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.controller});
+  const _Header({
+    required this.controller,
+    required this.title,
+    required this.onRename,
+  });
 
   final EditorController controller;
+  final String title;
+  final VoidCallback onRename;
 
   Future<void> _changeConfiguration(
     BuildContext context,
@@ -361,9 +374,33 @@ class _Header extends StatelessWidget {
                         style: Theme.of(context).textTheme.labelSmall,
                       ),
                       const SizedBox(height: 3),
-                      Text(
-                        'Layout editor',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      // The title is the layout's name, and tapping it renames
+                      // the layout — there is no separate save step.
+                      InkWell(
+                        onTap: onRename,
+                        borderRadius: BorderRadius.circular(6),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.edit_rounded,
+                                size: 15,
+                                color: AppColors.muted,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

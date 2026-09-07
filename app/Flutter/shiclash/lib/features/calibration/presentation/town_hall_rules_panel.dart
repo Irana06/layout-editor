@@ -128,11 +128,13 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
     }).toList();
     if (candidates.isEmpty) {
       setState(() {
-        _message = 'Tidak ada aturan ${_title(category)} yang masih reset untuk disinkronkan dari TH $previous.';
+        _message =
+            'Tidak ada aturan ${_title(category)} yang masih reset untuk disinkronkan dari TH $previous.';
       });
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text('Sync ${_title(category)} dari TH $previous?'),
@@ -160,7 +162,8 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
         for (final type in candidates)
           type.id: _ruleFor(type.id, previous).copy(),
       };
-      _message = '${candidates.length} aturan ${_title(category)} mengikuti TH $previous. Tekan Simpan aturan TH untuk menerapkan.';
+      _message =
+          '${candidates.length} aturan ${_title(category)} mengikuti TH $previous. Tekan Simpan aturan TH untuk menerapkan.';
     });
   }
 
@@ -290,7 +293,9 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
                                 entry.value,
                               ),
                         icon: const Icon(Icons.sync, size: 18),
-                        label: Text('Sync yang reset dari TH $_previousTownHallLevel'),
+                        label: Text(
+                          'Sync yang reset dari TH $_previousTownHallLevel',
+                        ),
                       ),
                     ),
                   ),

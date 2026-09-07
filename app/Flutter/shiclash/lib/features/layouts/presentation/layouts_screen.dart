@@ -24,6 +24,24 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
     if (edit == true && mounted) await _open(context, draft);
   }
 
+  Future<void> _duplicate(BuildContext context, LocalDraft draft) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await store.duplicate(draft.id);
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('“${draft.title}” diduplikat.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Duplikat gagal disimpan.')),
+        );
+      }
+    }
+  }
+
   Future<void> _rename(LocalDraft draft) async {
     var name = draft.title;
     final result = await showDialog<String>(
@@ -231,11 +249,17 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                           value: 'rename',
                           child: Text('Ganti nama'),
                         ),
+                        PopupMenuItem(
+                          value: 'duplicate',
+                          child: Text('Duplikat'),
+                        ),
                         PopupMenuItem(value: 'delete', child: Text('Hapus')),
                       ],
                       onSelected: (value) {
                         if (value == 'rename') {
                           _rename(draft);
+                        } else if (value == 'duplicate') {
+                          _duplicate(context, draft);
                         } else {
                           _delete(context, draft);
                         }
