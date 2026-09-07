@@ -70,12 +70,17 @@ export default function Calibrate({
                           default_grid_width:
                               type?.default_grid_width ?? t.default_grid_width,
                           default_grid_height:
-                              type?.default_grid_height ?? t.default_grid_height,
+                              type?.default_grid_height ??
+                              t.default_grid_height,
                           levels: t.levels.map((l) =>
                               l.id === updated.id
                                   ? updated
                                   : type
-                                    ? { ...l, grid_width: null, grid_height: null }
+                                    ? {
+                                          ...l,
+                                          grid_width: null,
+                                          grid_height: null,
+                                      }
                                     : l,
                           ),
                       },
