@@ -8,7 +8,7 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Buat base**: pilih TH dan scenery. Draft aktif yang berisi objek disimpan sebagai salinan sebelum permintaan canvas baru dikirim ke editor.
 - **Katalog**: cari bangunan dan filter berdasarkan TH; ketuk kartu untuk membuka detail level, footprint, dan limit jumlah.
 - **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, dan simpan salinan.
-- **Editor landscape**: tombol maximize membuka kanvas satu layar penuh dalam orientasi landscape dengan bilah bangunan di bawah; tombol minimize mengembalikan ke mode potrait.
+- **Editor landscape**: tombol maximize membuka kanvas satu layar penuh dalam orientasi landscape dengan bilah bangunan di bawah; tombol minimize mengembalikan ke mode potrait. Kartu detail bangunan yang dipilih tampil sama seperti di potrait, di sudut kiri atas.
 - **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
 - **Calibrator · Admin**: kalibrasi grid/origin scenery serta footprint, skala, dan offset building per level. Mendukung zoom/pan, drag langsung, input presisi, undo/redo, reset, salin antar-level, transparansi preview, grid lock, dan proteksi perubahan yang belum disimpan.

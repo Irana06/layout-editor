@@ -4,6 +4,7 @@ import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
 import 'package:shiclash/features/editor/presentation/isometric_board.dart';
+import 'package:shiclash/features/editor/presentation/selection_card.dart';
 
 /// Full-screen landscape editing, opened from the portrait editor's maximize
 /// button.
@@ -69,6 +70,16 @@ class _LandscapeEditorScreenState extends State<LandscapeEditorScreen> {
           return Stack(
             children: [
               Positioned.fill(child: IsometricBoard(controller: controller)),
+              // Mirrors the portrait editor, but on the opposite side: the tool
+              // column already owns the top-right corner in landscape.
+              if (controller.selectedPlacement != null)
+                Positioned(
+                  top: 10,
+                  left: 10,
+                  child: SafeArea(
+                    child: SelectionCard(controller: controller),
+                  ),
+                ),
               Positioned(
                 top: 10,
                 right: 10,

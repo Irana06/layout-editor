@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
 import 'package:shiclash/features/editor/presentation/landscape_editor_screen.dart';
+import 'package:shiclash/features/editor/presentation/selection_card.dart';
 
 const _catalog = CatalogBootstrap(
   sceneries: [
@@ -130,5 +131,36 @@ void main() {
     await pumpLandscape(tester);
 
     expect(find.byTooltip('Kembali ke mode potrait'), findsOneWidget);
+  });
+
+  testWidgets('selecting a placement shows the same detail card as portrait', (
+    tester,
+  ) async {
+    await pumpLandscape(tester);
+
+    expect(find.byType(SelectionCard), findsNothing);
+
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(6, 6);
+    await tester.pump();
+
+    expect(find.byType(SelectionCard), findsOneWidget);
+    expect(find.text('Cannon'), findsWidgets);
+    expect(find.byTooltip('Tutup detail'), findsOneWidget);
+    expect(find.byTooltip('Naikkan level'), findsOneWidget);
+  });
+
+  testWidgets('closing the detail card clears the selection', (tester) async {
+    await pumpLandscape(tester);
+
+    controller.arm(controller.typeFor(2)!);
+    controller.handleGridTap(6, 6);
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Tutup detail'));
+    await tester.pump();
+
+    expect(controller.selectedId, isNull);
+    expect(find.byType(SelectionCard), findsNothing);
   });
 }
