@@ -92,10 +92,32 @@ class MobileCalibrationTest extends TestCase
         $this->patchJson("/api/v1/admin/building-levels/{$level->id}", [
             'grid_width' => 4, 'grid_height' => 3, 'offset_x' => 12.5, 'offset_y' => -8, 'scale' => 1.25,
         ])->assertOk();
+        // A tile size is a property of the building, so it is stored once on the
+        // type and every level inherits it instead of carrying its own copy.
         $this->getJson('/api/v1/bootstrap')->assertOk()
             ->assertJsonPath('data.building_types.0.levels.0.offset_x', 12.5)
-            ->assertJsonPath('data.building_types.0.levels.0.grid_width', 4);
+            ->assertJsonPath('data.building_types.0.levels.0.grid_width', null)
+            ->assertJsonPath('data.building_types.0.default_grid_width', 4)
+            ->assertJsonPath('data.building_types.0.default_grid_height', 3);
         $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_tile_size_set_on_one_level_is_shared_by_every_other_level(): void
+    {
+        $type = BuildingType::create(['name' => 'Town Hall', 'category' => 'resource', 'default_grid_width' => 3, 'default_grid_height' => 3]);
+        $first = BuildingLevel::create(['building_type_id' => $type->id, 'level' => 1, 'file_path' => 'th1.png']);
+        $second = BuildingLevel::create(['building_type_id' => $type->id, 'level' => 2, 'file_path' => 'th2.png', 'grid_width' => 7, 'grid_height' => 7]);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-levels/{$first->id}", ['grid_width' => 4, 'grid_height' => 4])
+            ->assertOk()
+            ->assertJsonPath('buildingType.default_grid_width', 4);
+
+        // Calibrating level 1 resizes the whole building, and the stale override
+        // that level 2 was carrying is cleared rather than left to win locally.
+        $this->assertSame(4, $type->fresh()->default_grid_width);
+        $this->assertNull($first->fresh()->grid_width);
+        $this->assertNull($second->fresh()->grid_width);
     }
 
     public function test_verified_admin_can_apply_one_square_footprint_to_every_level_of_a_building(): void

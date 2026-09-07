@@ -29,7 +29,7 @@ type Props = {
     type: BuildingType;
     level: BuildingLevel;
     sceneries: Scenery[];
-    onUpdated: (level: BuildingLevel) => void;
+    onUpdated: (level: BuildingLevel, type: BuildingType | null) => void;
     onAddLevel: (typeId: number, level: number, file: File) => Promise<void>;
 };
 
@@ -270,8 +270,9 @@ export function BuildingLevelCalibrationPanel({
         setSaveState('idle');
 
         try {
-            const { buildingLevel } = await apiFetch<{
+            const { buildingLevel, buildingType } = await apiFetch<{
                 buildingLevel: BuildingLevel;
+                buildingType: BuildingType | null;
             }>(buildingLevelRoutes.update(level.id), {
                 grid_width: gridWidth === '' ? null : gridWidth,
                 grid_height: gridHeight === '' ? null : gridHeight,
@@ -279,7 +280,15 @@ export function BuildingLevelCalibrationPanel({
                 offset_x: offsetX,
                 offset_y: offsetY,
             });
-            onUpdated(buildingLevel);
+            onUpdated(buildingLevel, buildingType);
+
+            // The tile size now lives on the type, so clear the local inputs and
+            // let them fall back to showing that shared value as placeholder.
+            if (buildingType) {
+                setGridWidth('');
+                setGridHeight('');
+            }
+
             setSaveState('saved');
         } catch {
             setSaveState('error');

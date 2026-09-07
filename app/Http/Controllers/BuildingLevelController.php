@@ -7,6 +7,7 @@ use App\Models\BuildingType;
 use App\Support\GameAssetUploader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 class BuildingLevelController extends Controller
 {
@@ -48,9 +49,26 @@ class BuildingLevelController extends Controller
             'offset_y' => ['sometimes', 'numeric', 'min:-500', 'max:500'],
         ]);
 
-        $buildingLevel->update($data);
+        $type = $buildingLevel->type;
 
-        return response()->json(['buildingLevel' => $buildingLevel->fresh()]);
+        // A tile size typed while calibrating one level is a statement about the
+        // building itself, so it is promoted to the type's default and shared by
+        // every level rather than being stored as a one-level override.
+        $width = $data['grid_width'] ?? null;
+        $height = $data['grid_height'] ?? null;
+        $footprint = $width !== null || $height !== null
+            ? $type->applyFootprint(
+                $width ?? $type->default_grid_width,
+                $height ?? $type->default_grid_height,
+            )
+            : null;
+
+        $buildingLevel->update(Arr::except($data, ['grid_width', 'grid_height']));
+
+        return response()->json([
+            'buildingLevel' => $buildingLevel->fresh(),
+            'buildingType' => $footprint,
+        ]);
     }
 
     public function destroy(BuildingLevel $buildingLevel): JsonResponse

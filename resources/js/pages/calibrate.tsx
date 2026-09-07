@@ -55,15 +55,28 @@ export default function Calibrate({
         [selectedType, selectedLevelId],
     );
 
-    const handleLevelUpdated = (updated: BuildingLevel) => {
+    /** `type` is present when the save also changed the shared footprint, in which
+     * case every sibling level inherits the new tile size too. */
+    const handleLevelUpdated = (
+        updated: BuildingLevel,
+        type: BuildingType | null,
+    ) => {
         setBuildingTypes((types) =>
             types.map((t) =>
                 t.id !== updated.building_type_id
                     ? t
                     : {
                           ...t,
+                          default_grid_width:
+                              type?.default_grid_width ?? t.default_grid_width,
+                          default_grid_height:
+                              type?.default_grid_height ?? t.default_grid_height,
                           levels: t.levels.map((l) =>
-                              l.id === updated.id ? updated : l,
+                              l.id === updated.id
+                                  ? updated
+                                  : type
+                                    ? { ...l, grid_width: null, grid_height: null }
+                                    : l,
                           ),
                       },
             ),
