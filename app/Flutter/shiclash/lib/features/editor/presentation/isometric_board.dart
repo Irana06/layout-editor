@@ -130,10 +130,12 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     transformationController: _transform,
                     constrained: false,
                     panEnabled: !controller.dragging,
-                    // Zooming out is allowed exactly as far as the full map.
-                    minScale: _fitScaleFor(viewport, scenery),
+                    // Room to breathe past the edges: stopping exactly at the
+                    // map made the view feel stuck, with no way to pull a
+                    // corner toward the middle of the screen to work on it.
+                    minScale: _fitScaleFor(viewport, scenery) * .45,
                     maxScale: 3.5,
-                    boundaryMargin: const EdgeInsets.all(500),
+                    boundaryMargin: const EdgeInsets.all(double.infinity),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTapUp: _tap,
