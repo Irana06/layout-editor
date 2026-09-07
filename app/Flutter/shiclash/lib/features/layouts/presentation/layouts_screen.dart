@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
 import 'package:shiclash/features/layouts/presentation/layout_detail_screen.dart';
+import 'package:shiclash/features/layouts/presentation/share_sheet.dart';
 
 class LayoutsScreen extends StatefulWidget {
   const LayoutsScreen({required this.store, required this.onOpen, super.key});
@@ -191,11 +192,15 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                   ),
                 ),
               ),
-              if (store.active != null)
+              // Only the still-unnamed draft gets its own row; once it has a
+              // name it is one of the layouts listed below and showing it twice
+              // would suggest there are two of them.
+              if (store.active != null &&
+                  store.active!.id == DraftStore.scratchId)
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.history),
-                    title: const Text('Draft terakhir'),
+                    title: Text(store.active!.title),
                     subtitle: Text(
                       '${(store.active!.layout['data'] as List).length} objek · autosave',
                     ),
@@ -207,7 +212,7 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                 const Padding(
                   padding: EdgeInsets.all(20),
                   child: Text(
-                    'Belum ada salinan. Gunakan “Simpan salinan” di Editor untuk menambahkan layout.',
+                    'Belum ada layout tersimpan. Beri nama layout lewat judul di halaman Editor untuk menyimpannya di sini.',
                   ),
                 ),
               if (store.saved.isNotEmpty &&
@@ -253,6 +258,7 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                           value: 'duplicate',
                           child: Text('Duplikat'),
                         ),
+                        PopupMenuItem(value: 'share', child: Text('Bagikan')),
                         PopupMenuItem(value: 'delete', child: Text('Hapus')),
                       ],
                       onSelected: (value) {
@@ -260,6 +266,12 @@ class _LayoutsScreenState extends State<LayoutsScreen> {
                           _rename(draft);
                         } else if (value == 'duplicate') {
                           _duplicate(context, draft);
+                        } else if (value == 'share') {
+                          showShareSheet(
+                            context,
+                            title: draft.title,
+                            layout: draft.layout,
+                          );
                         } else {
                           _delete(context, draft);
                         }

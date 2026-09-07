@@ -9,6 +9,7 @@ import 'package:shiclash/features/editor/presentation/isometric_board.dart';
 import 'package:shiclash/features/editor/presentation/landscape_editor_screen.dart';
 import 'package:shiclash/features/editor/presentation/selection_card.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
+import 'package:shiclash/features/layouts/presentation/share_sheet.dart';
 
 class EditorScreen extends StatefulWidget {
   const EditorScreen({
@@ -209,6 +210,18 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
     }
   }
 
+  Future<void> _share() async {
+    // The snapshot has to include whatever is on screen right now, not the last
+    // autosave, or a just-placed building would be missing from the link.
+    await widget.drafts.autosave(controller.toLayout());
+    if (!mounted) return;
+    await showShareSheet(
+      context,
+      title: widget.drafts.active?.title ?? 'Layout Shiclash',
+      layout: controller.toLayout(),
+    );
+  }
+
   @override
   void dispose() {
     widget.drafts.removeListener(_draftChanged);
@@ -268,6 +281,7 @@ class _EditorWorkspaceState extends State<_EditorWorkspace> {
               controller: controller,
               title: widget.drafts.active?.title ?? 'Draft terakhir',
               onRename: _restoreBlocked ? () {} : _rename,
+              onShare: _restoreBlocked ? () {} : _share,
             ),
             Expanded(
               child: Stack(
@@ -308,11 +322,13 @@ class _Header extends StatelessWidget {
     required this.controller,
     required this.title,
     required this.onRename,
+    required this.onShare,
   });
 
   final EditorController controller;
   final String title;
   final VoidCallback onRename;
+  final VoidCallback onShare;
 
   Future<void> _changeConfiguration(
     BuildContext context,
@@ -404,6 +420,11 @@ class _Header extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  tooltip: 'Bagikan layout',
+                  onPressed: onShare,
+                  icon: const Icon(Icons.ios_share_rounded),
                 ),
                 IconButton(
                   tooltip: 'Undo',
