@@ -225,12 +225,31 @@ void main() {
     expect(controller.placements.last.gridX, 16);
   });
 
-  test('available buildings list Town Hall first, then alphabetically', () {
+  test('available buildings follow the order the server sends', () {
+    // Library order is the sequence a base is built in, which the server
+    // decides; the client only obeys display_order and breaks ties by name.
     final names = controller.availableBuildings
         .map((type) => type.name)
         .toList();
 
-    expect(names, ['Town Hall', 'Cannon']);
+    expect(names, ['Cannon', 'Town Hall']);
+
+    final ordered = EditorController(
+      CatalogBootstrap(
+        sceneries: controller.catalog.sceneries,
+        unlockRules: controller.catalog.unlockRules,
+        buildingTypes: [
+          controller.typeFor(1)!.copyWith(displayOrder: 100),
+          controller.typeFor(2)!.copyWith(displayOrder: 1500),
+        ],
+      ),
+    );
+    addTearDown(ordered.dispose);
+
+    expect(ordered.availableBuildings.map((type) => type.name).toList(), [
+      'Town Hall',
+      'Cannon',
+    ]);
   });
 
   test(

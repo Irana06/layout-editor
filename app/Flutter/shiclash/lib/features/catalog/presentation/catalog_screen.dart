@@ -4,6 +4,7 @@ import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/catalog/presentation/building_detail_screen.dart';
+import 'package:shiclash/features/catalog/presentation/scenery_view_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
   const CatalogScreen({super.key, required this.repository});
@@ -14,10 +15,15 @@ class CatalogScreen extends StatefulWidget {
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
+/// How the library is arranged. [category] keeps the editor's order — the
+/// sequence a base is built in — and is the default so both screens agree.
+enum CatalogSort { category, name, count }
+
 class _CatalogScreenState extends State<CatalogScreen> {
   late Future<CatalogBootstrap> _catalog;
   int _selectedTh = 1;
   String _query = '';
+  CatalogSort _sort = CatalogSort.category;
 
   @override
   void initState() {
@@ -55,6 +61,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
             onSearch: (value) => setState(() => _query = value),
             selectedTh: _selectedTh,
             onThSelected: (level) => setState(() => _selectedTh = level),
+            sort: _sort,
+            onSortChanged: (value) => setState(() => _sort = value),
             onRefresh: () async {
               _retry();
               await _catalog;
@@ -74,6 +82,8 @@ class _CatalogView extends StatelessWidget {
     required this.onRefresh,
     required this.query,
     required this.onSearch,
+    required this.sort,
+    required this.onSortChanged,
   });
 
   final CatalogBootstrap catalog;
@@ -82,20 +92,74 @@ class _CatalogView extends StatelessWidget {
   final Future<void> Function() onRefresh;
   final String query;
   final ValueChanged<String> onSearch;
+  final CatalogSort sort;
+  final ValueChanged<CatalogSort> onSortChanged;
+
+  /// How many of this building the selected Town Hall allows, for the count
+  /// ordering. Buildings with no rule sink to the bottom rather than pretending
+  /// to be unlimited.
+  int _allowance(BuildingType type) {
+    for (final rule in catalog.unlockRules) {
+      if (rule.buildingTypeId == type.id && rule.thLevel == selectedTh) {
+        return rule.maxCount ?? 0;
+      }
+    }
+
+    return 0;
+  }
+
+  Widget _buildCard(BuildContext context, BuildingType building) {
+    final maxLevel = catalog.maxLevelFor(building.id, selectedTh);
+    int? count;
+    for (final rule in catalog.unlockRules) {
+      if (rule.buildingTypeId == building.id && rule.thLevel == selectedTh) {
+        count = rule.maxCount;
+      }
+    }
+
+    return _BuildingCard(
+      building: building,
+      maxLevel: maxLevel,
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BuildingDetailScreen(
+            building: building,
+            maxLevel: maxLevel,
+            thLevel: selectedTh,
+            maxCount: count,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final townHallLevels = catalog.townHall?.levels ?? const <BuildingLevel>[];
-    final visibleBuildings = catalog.buildingTypes
-        .where((type) {
+    final visibleBuildings =
+        catalog.buildingTypes.where((type) {
           return !type.isTownHall &&
               type.name.toLowerCase().contains(query.toLowerCase().trim()) &&
               catalog.maxLevelFor(type.id, selectedTh) > 0;
-        })
-        .toList(growable: false);
+        }).toList()..sort(switch (sort) {
+          CatalogSort.category => compareForLibrary,
+          CatalogSort.name => (a, b) => a.name.compareTo(b.name),
+          // Most numerous first, the way the game's own bar opens on walls.
+          CatalogSort.count => (a, b) {
+            final byCount = _allowance(b).compareTo(_allowance(a));
+
+            return byCount != 0 ? byCount : a.name.compareTo(b.name);
+          },
+        });
+
+    // Only the category view is grouped; the other two are deliberately flat,
+    // since headings would fight the ordering being asked for.
     final grouped = <String, List<BuildingType>>{};
-    for (final building in visibleBuildings) {
-      grouped.putIfAbsent(building.category, () => []).add(building);
+    if (sort == CatalogSort.category) {
+      for (final building in visibleBuildings) {
+        grouped.putIfAbsent(building.category, () => []).add(building);
+      }
     }
 
     return RefreshIndicator(
@@ -148,8 +212,26 @@ class _CatalogView extends StatelessWidget {
               title: 'Tersedia di TH$selectedTh',
             ),
           ),
-          if (grouped.isEmpty)
+          SliverToBoxAdapter(
+            child: _SortBar(value: sort, onChanged: onSortChanged),
+          ),
+          if (visibleBuildings.isEmpty)
             const SliverToBoxAdapter(child: _EmptyBuildings())
+          else if (sort != CatalogSort.category)
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+              sliver: SliverGrid.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: .8,
+                ),
+                itemCount: visibleBuildings.length,
+                itemBuilder: (context, index) =>
+                    _buildCard(context, visibleBuildings[index]),
+              ),
+            )
           else
             ...grouped.entries.expand(
               (entry) => [
@@ -165,37 +247,8 @@ class _CatalogView extends StatelessWidget {
                           childAspectRatio: .8,
                         ),
                     itemCount: entry.value.length,
-                    itemBuilder: (context, index) {
-                      final building = entry.value[index];
-                      final maxLevel = catalog.maxLevelFor(
-                        building.id,
-                        selectedTh,
-                      );
-                      return _BuildingCard(
-                        building: building,
-                        maxLevel: maxLevel,
-                        onTap: () {
-                          int? count;
-                          for (final rule in catalog.unlockRules) {
-                            if (rule.buildingTypeId == building.id &&
-                                rule.thLevel == selectedTh) {
-                              count = rule.maxCount;
-                            }
-                          }
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BuildingDetailScreen(
-                                building: building,
-                                maxLevel: maxLevel,
-                                thLevel: selectedTh,
-                                maxCount: count,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
+                    itemBuilder: (context, index) =>
+                        _buildCard(context, entry.value[index]),
                   ),
                 ),
               ],
@@ -365,48 +418,56 @@ class _SceneryRail extends StatelessWidget {
           final scenery = sceneries[index];
           return SizedBox(
             width: 174,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(5),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _NetworkArt(url: scenery.imageUrl),
-                  const DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Colors.transparent, Color(0xE6100E0C)],
+            child: InkWell(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SceneryViewScreen(scenery: scenery),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(5),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _NetworkArt(url: scenery.imageUrl),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Color(0xE6100E0C)],
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 10,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          scenery.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 10,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            scenery.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${scenery.gridSize} × ${scenery.gridSize} grid',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            color: AppColors.muted,
+                          Text(
+                            '${scenery.gridSize} × ${scenery.gridSize} grid',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: AppColors.muted,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
@@ -657,4 +718,51 @@ class _ErrorView extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Chooses how the library below is arranged.
+class _SortBar extends StatelessWidget {
+  const _SortBar({required this.value, required this.onChanged});
+
+  final CatalogSort value;
+  final ValueChanged<CatalogSort> onChanged;
+
+  static const _labels = {
+    CatalogSort.category: 'Kategori',
+    CatalogSort.name: 'Nama',
+    CatalogSort.count: 'Jumlah',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+      child: Row(
+        children: [
+          const Icon(Icons.sort_rounded, size: 16, color: AppColors.muted),
+          const SizedBox(width: 8),
+          const Text(
+            'Urutkan',
+            style: TextStyle(color: AppColors.muted, fontSize: 11),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              children: [
+                for (final entry in _labels.entries)
+                  ChoiceChip(
+                    label: Text(entry.value),
+                    selected: value == entry.key,
+                    onSelected: (_) => onChanged(entry.key),
+                    labelStyle: const TextStyle(fontSize: 11),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

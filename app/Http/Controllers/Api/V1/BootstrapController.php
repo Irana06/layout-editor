@@ -7,6 +7,7 @@ use App\Models\BuildingLevel;
 use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
+use App\Support\BuildingDisplayOrder;
 use Illuminate\Http\JsonResponse;
 
 class BootstrapController extends Controller
@@ -35,18 +36,20 @@ class BootstrapController extends Controller
                 'image_url' => $assetUrl($scenery->file_path),
             ]);
 
-        $buildingTypes = BuildingType::query()
-            ->with(['levels' => fn ($query) => $query->orderBy('level')])
-            ->orderBy('category')
-            ->orderBy('subfolder')
-            ->orderBy('name')
-            ->get()
+        // Library order is a property of how a base gets built, not of the
+        // catalogue, so the server decides it once and every client follows.
+        $buildingTypes = BuildingDisplayOrder::sort(
+            BuildingType::query()
+                ->with(['levels' => fn ($query) => $query->orderBy('level')])
+                ->get()
+        )
             ->map(fn (BuildingType $type): array => [
                 ...$type->only([
                     'id', 'name', 'category', 'subfolder', 'is_town_hall',
                     'default_grid_width', 'default_grid_height', 'shows_deployment_ring',
                     'attack_range_min', 'attack_range_max',
                 ]),
+                'display_order' => BuildingDisplayOrder::for($type),
                 'levels' => $type->levels->map(fn (BuildingLevel $level): array => [
                     ...$level->toArray(),
                     'image_url' => $assetUrl($level->file_path),

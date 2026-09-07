@@ -119,6 +119,14 @@ class Scenery {
   };
 }
 
+/// Library order: the sequence a base is actually built in, decided by the
+/// server. Ties fall back to the name so a category stays predictable.
+int compareForLibrary(BuildingType a, BuildingType b) {
+  final byOrder = a.displayOrder.compareTo(b.displayOrder);
+
+  return byOrder != 0 ? byOrder : a.name.compareTo(b.name);
+}
+
 class BuildingType {
   const BuildingType({
     required this.id,
@@ -132,6 +140,7 @@ class BuildingType {
     this.showsDeploymentRing = true,
     this.attackRangeMin = 0,
     this.attackRangeMax = 0,
+    this.displayOrder = 9999,
   });
 
   factory BuildingType.fromJson(Map<String, dynamic> json) => BuildingType(
@@ -148,6 +157,7 @@ class BuildingType {
               json['shows_deployment_ring'] == 1,
     attackRangeMin: _int(json['attack_range_min']),
     attackRangeMax: _int(json['attack_range_max']),
+    displayOrder: _int(json['display_order'], fallback: 9999),
     levels: _list(json['levels'])
         .map((item) => BuildingLevel.fromJson(item))
         .toList(growable: false),
@@ -167,6 +177,10 @@ class BuildingType {
   /// so nothing is drawn. A non-zero [attackRangeMin] is a blind spot.
   final int attackRangeMin;
   final int attackRangeMax;
+
+  /// Where this sits in the library, decided by the server so the editor, the
+  /// catalogue, and the web app never disagree about it.
+  final int displayOrder;
   final List<BuildingLevel> levels;
 
   /// Radius of a range ring in tiles, measured from the building's centre to
@@ -180,6 +194,7 @@ class BuildingType {
     bool? showsDeploymentRing,
     int? attackRangeMin,
     int? attackRangeMax,
+    int? displayOrder,
     List<BuildingLevel>? levels,
   }) => BuildingType(
     id: id,
@@ -192,6 +207,7 @@ class BuildingType {
     showsDeploymentRing: showsDeploymentRing ?? this.showsDeploymentRing,
     attackRangeMin: attackRangeMin ?? this.attackRangeMin,
     attackRangeMax: attackRangeMax ?? this.attackRangeMax,
+    displayOrder: displayOrder ?? this.displayOrder,
     levels: levels ?? this.levels,
   );
 

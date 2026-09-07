@@ -70,6 +70,7 @@ class _AppShellState extends State<AppShell> {
         store: _drafts,
         repository: _repository,
         navigate: (index) => setState(() => _index = index),
+        account: _account,
       ),
       CatalogScreen(repository: _repository),
       EditorScreen(repository: _repository, drafts: _drafts),

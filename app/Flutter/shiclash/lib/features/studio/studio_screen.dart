@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
+import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class StudioScreen extends StatelessWidget {
   const StudioScreen({
@@ -10,10 +12,14 @@ class StudioScreen extends StatelessWidget {
     required this.store,
     required this.repository,
     required this.navigate,
+    required this.account,
   });
   final DraftStore store;
   final CatalogRepository repository;
   final ValueChanged<int> navigate;
+  final GoogleAccountController account;
+
+  static final Uri _saweria = Uri.parse('https://saweria.co/shicomp');
 
   Future<void> _create(BuildContext context) async {
     final draft = await Navigator.of(context).push<LocalDraft>(
@@ -133,6 +139,20 @@ class StudioScreen extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => navigate(1),
           ),
+        ),
+        const SizedBox(height: 22),
+        ListenableBuilder(
+          listenable: account,
+          // Only worth saying while the layouts really are at risk. Once signed
+          // in, repeating it would be nagging about a solved problem.
+          builder: (context, _) => account.signedIn
+              ? const SizedBox.shrink()
+              : _BackupReminder(onOpenAccount: () => navigate(4)),
+        ),
+        const SizedBox(height: 14),
+        _DonationCard(
+          onOpen: () =>
+              launchUrl(_saweria, mode: LaunchMode.externalApplication),
         ),
         const SizedBox(height: 20),
         const Text(
@@ -313,4 +333,81 @@ class _NewBaseScreenState extends State<NewBaseScreen> {
       },
     ),
   );
+}
+
+/// Layouts live on this device until an account is attached, and nothing warns
+/// about that at the moment it matters — when the phone is replaced or the app
+/// removed. This says it while there is still something to be done.
+class _BackupReminder extends StatelessWidget {
+  const _BackupReminder({required this.onOpenAccount});
+
+  final VoidCallback onOpenAccount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.brass.withValues(alpha: .55)),
+        borderRadius: BorderRadius.circular(8),
+        color: AppColors.panel.withValues(alpha: .6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.cloud_off_rounded,
+                color: AppColors.brass,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Layout belum dicadangkan',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Semua layout hanya tersimpan di HP ini. Kalau aplikasi dihapus, '
+            'data dibersihkan, atau kamu ganti HP, semuanya ikut hilang. '
+            'Masuk dengan Google untuk mencadangkannya ke Drive.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onOpenAccount,
+            icon: const Icon(Icons.login_rounded, size: 18),
+            label: const Text('Masuk & cadangkan'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DonationCard extends StatelessWidget {
+  const _DonationCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(
+          Icons.volunteer_activism_outlined,
+          color: AppColors.brass,
+        ),
+        title: const Text('Dukung pengembangan'),
+        subtitle: const Text('Traktir lewat Saweria · saweria.co/shicomp'),
+        trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+        onTap: onOpen,
+      ),
+    );
+  }
 }

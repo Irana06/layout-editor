@@ -261,16 +261,11 @@ class EditorController extends ChangeNotifier {
   /// alphabetical. Shared by the portrait library and the landscape dock so both
   /// always offer the same set.
   List<BuildingType> get availableBuildings {
-    final buildings =
-        catalog.buildingTypes.where((type) {
-          final maxLevel = maxLevelFor(type);
+    final buildings = catalog.buildingTypes.where((type) {
+      final maxLevel = maxLevelFor(type);
 
-          return maxLevel > 0 && type.thumbnailFor(maxLevel) != null;
-        }).toList()..sort((a, b) {
-          if (a.isTownHall == b.isTownHall) return a.name.compareTo(b.name);
-
-          return a.isTownHall ? -1 : 1;
-        });
+      return maxLevel > 0 && type.thumbnailFor(maxLevel) != null;
+    }).toList()..sort(compareForLibrary);
 
     return List.unmodifiable(buildings);
   }
