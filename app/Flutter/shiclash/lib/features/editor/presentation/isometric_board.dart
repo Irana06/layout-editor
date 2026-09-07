@@ -48,6 +48,12 @@ class _IsometricBoardState extends State<IsometricBoard> {
 
   void _tap(TapUpDetails details) {
     final grid = _gridAt(details.localPosition);
+    // Read-only still selects, so a shared layout can be inspected building by
+    // building; it just cannot place or move anything.
+    if (widget.readOnly) {
+      widget.controller.selectAt(grid.x, grid.y);
+      return;
+    }
     widget.controller.handleGridTap(grid.x, grid.y);
   }
 
@@ -137,15 +143,16 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     transformationController: _transform,
                     constrained: false,
                     panEnabled: !controller.dragging,
-                    // Room to breathe past the edges: stopping exactly at the
-                    // map made the view feel stuck, with no way to pull a
-                    // corner toward the middle of the screen to work on it.
-                    minScale: _fitScaleFor(viewport, scenery) * .45,
+                    // The scenery is the whole world: zooming out stops once it
+                    // fills the screen, and panning stops at its edges. Letting
+                    // the view drift past them left the map floating in a black
+                    // void with nothing to aim at.
+                    minScale: _fitScaleFor(viewport, scenery),
                     maxScale: 3.5,
-                    boundaryMargin: const EdgeInsets.all(double.infinity),
+                    boundaryMargin: EdgeInsets.zero,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTapUp: widget.readOnly ? null : _tap,
+                      onTapUp: _tap,
                       onLongPressStart: widget.readOnly ? null : _beginMove,
                       onLongPressMoveUpdate: widget.readOnly
                           ? null

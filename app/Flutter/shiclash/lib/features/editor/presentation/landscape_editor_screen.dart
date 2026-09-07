@@ -15,9 +15,17 @@ import 'package:shiclash/features/editor/presentation/selection_card.dart';
 /// shares the caller's [EditorController], so placements, history and autosave
 /// continue uninterrupted in both orientations.
 class LandscapeEditorScreen extends StatefulWidget {
-  const LandscapeEditorScreen({required this.controller, super.key});
+  const LandscapeEditorScreen({
+    required this.controller,
+    this.readOnly = false,
+    super.key,
+  });
 
   final EditorController controller;
+
+  /// Viewing a shared layout: the building dock and editing tools step aside,
+  /// leaving pan, zoom, and tapping a building to read its details.
+  final bool readOnly;
 
   @override
   State<LandscapeEditorScreen> createState() => _LandscapeEditorScreenState();
@@ -69,37 +77,54 @@ class _LandscapeEditorScreenState extends State<LandscapeEditorScreen> {
         builder: (context, _) {
           return Stack(
             children: [
-              Positioned.fill(child: IsometricBoard(controller: controller)),
+              Positioned.fill(
+                child: IsometricBoard(
+                  controller: controller,
+                  readOnly: widget.readOnly,
+                ),
+              ),
               // Mirrors the portrait editor, but on the opposite side: the tool
               // column already owns the top-right corner in landscape.
               if (controller.selectedPlacement != null)
                 Positioned(
                   top: 10,
                   left: 10,
-                  child: SafeArea(child: SelectionCard(controller: controller)),
+                  child: SafeArea(
+                    child: SelectionCard(
+                      controller: controller,
+                      readOnly: widget.readOnly,
+                    ),
+                  ),
                 ),
               Positioned(
                 top: 10,
                 right: 10,
                 child: SafeArea(
-                  child: _LandscapeTools(
-                    controller: controller,
-                    dockOpen: _dockOpen,
-                    onToggleDock: () => setState(() => _dockOpen = !_dockOpen),
-                    onMinimize: _minimize,
+                  child: widget.readOnly
+                      ? _ReadOnlyTools(onMinimize: _minimize)
+                      : _LandscapeTools(
+                          controller: controller,
+                          dockOpen: _dockOpen,
+                          onToggleDock: () =>
+                              setState(() => _dockOpen = !_dockOpen),
+                          onMinimize: _minimize,
+                        ),
+                ),
+              ),
+              if (!widget.readOnly)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: SafeArea(
+                    top: false,
+                    child: _StatusStrip(
+                      controller: controller,
+                      dock: _dockOpen,
+                    ),
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: SafeArea(
-                  top: false,
-                  child: _StatusStrip(controller: controller, dock: _dockOpen),
-                ),
-              ),
-              if (_dockOpen)
+              if (_dockOpen && !widget.readOnly)
                 Positioned(
                   left: 0,
                   right: 0,
@@ -396,6 +421,31 @@ class _DockCard extends StatelessWidget {
         onTap: () => controller.arm(type, level: maxLevel),
         borderRadius: BorderRadius.circular(6),
         child: card,
+      ),
+    );
+  }
+}
+
+/// Landscape controls for a shared layout: nothing to undo, nothing to place,
+/// so only the way back to portrait remains.
+class _ReadOnlyTools extends StatelessWidget {
+  const _ReadOnlyTools({required this.onMinimize});
+
+  final Future<void> Function() onMinimize;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.panel.withValues(alpha: .88),
+        border: Border.all(color: AppColors.line),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: _ToolIcon(
+        icon: Icons.close_fullscreen_rounded,
+        tooltip: 'Kembali ke mode potrait',
+        onPressed: () => onMinimize(),
+        active: true,
       ),
     );
   }

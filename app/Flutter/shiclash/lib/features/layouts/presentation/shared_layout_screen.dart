@@ -3,6 +3,8 @@ import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
 import 'package:shiclash/features/editor/presentation/isometric_board.dart';
+import 'package:shiclash/features/editor/presentation/landscape_editor_screen.dart';
+import 'package:shiclash/features/editor/presentation/selection_card.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
 import 'package:shiclash/features/layouts/data/share_api.dart';
 
@@ -104,6 +106,21 @@ class _SharedLayoutScreenState extends State<SharedLayoutScreen> {
       backgroundColor: const Color(0xFF070605),
       appBar: AppBar(
         title: Text(_shared?.title ?? 'Layout dibagikan'),
+        actions: [
+          if (controller != null)
+            IconButton(
+              tooltip: 'Mode landscape',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => LandscapeEditorScreen(
+                    controller: controller,
+                    readOnly: true,
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.open_in_full_rounded),
+            ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(18),
           child: Padding(
@@ -126,7 +143,31 @@ class _SharedLayoutScreenState extends State<SharedLayoutScreen> {
             )
           : _error != null
           ? _Failure(message: _error!, onRetry: _load)
-          : IsometricBoard(controller: controller!, readOnly: true),
+          : AnimatedBuilder(
+              animation: controller!,
+              builder: (context, _) => Stack(
+                children: [
+                  Positioned.fill(
+                    child: IsometricBoard(
+                      controller: controller,
+                      readOnly: true,
+                    ),
+                  ),
+                  // Tapping a building reads out its level and range, the same
+                  // card the editor shows — minus the level stepper, since
+                  // there is nothing here to change.
+                  if (controller.selectedPlacement != null)
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: SelectionCard(
+                        controller: controller,
+                        readOnly: true,
+                      ),
+                    ),
+                ],
+              ),
+            ),
       bottomNavigationBar: _error != null || _loading
           ? null
           : SafeArea(

@@ -9,9 +9,17 @@ import 'package:shiclash/features/editor/domain/editor_controller.dart';
 /// Shared by the portrait and landscape editors so a selection reads and behaves
 /// identically in both orientations.
 class SelectionCard extends StatelessWidget {
-  const SelectionCard({required this.controller, super.key});
+  const SelectionCard({
+    required this.controller,
+    this.readOnly = false,
+    super.key,
+  });
 
   final EditorController controller;
+
+  /// Someone else's layout: the card reports, it does not offer to change
+  /// levels or hint at dragging.
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +36,7 @@ class SelectionCard extends StatelessWidget {
             .toList()
           ..sort();
     final index = available.indexOf(placement.level);
-    final editable = !type.isTownHall && index >= 0;
+    final editable = !readOnly && !type.isTownHall && index >= 0;
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 190),
       child: DecoratedBox(
@@ -127,9 +135,11 @@ class SelectionCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 3),
-              const Text(
-                'Tahan lalu geser untuk memindahkan.',
-                style: TextStyle(color: AppColors.muted, fontSize: 9),
+              Text(
+                readOnly
+                    ? 'Ketuk bangunan lain untuk melihat detailnya.'
+                    : 'Tahan lalu geser untuk memindahkan.',
+                style: const TextStyle(color: AppColors.muted, fontSize: 9),
               ),
             ],
           ),
