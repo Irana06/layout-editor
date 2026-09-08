@@ -638,7 +638,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'Dihitung dari petak tepi bangunan. Maksimal 0 berarti bangunan ini tidak menyerang dan tidak menampilkan ring. Isi minimal hanya untuk bangunan bertitik buta seperti Mortar.',
+                      'Dihitung dari titik tengah bangunan, sama seperti angka jangkauan di game. Maksimal 0 berarti bangunan ini tidak menyerang dan tidak menampilkan ring. Isi minimal hanya untuk bangunan bertitik buta seperti Mortar.',
                       style: TextStyle(color: AppColors.muted, fontSize: 11),
                     ),
                     const SizedBox(height: 8),

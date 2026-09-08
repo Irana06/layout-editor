@@ -12,18 +12,17 @@ BuildingType typeOfSize(int size) => BuildingType(
 );
 
 void main() {
-  test('range is measured outward from the footprint edge, not the centre', () {
-    // A 1x1 building: range 1 reaches the ring of tiles touching it, so the
-    // circle passes through the centre of a tile one step away.
+  test('range is the radius from the centre, whatever the footprint', () {
+    // A 1x1 building: range 1 reaches the ring of tiles touching it.
     expect(typeOfSize(1).ringRadius(1), 1);
     expect(typeOfSize(1).ringRadius(7), 7);
 
-    // A 3x3 building already occupies one tile in every direction from its
-    // centre, so the same range 1 lands one tile further out.
-    expect(typeOfSize(3).ringRadius(1), 2);
-    expect(typeOfSize(3).ringRadius(11), 12);
-
-    expect(typeOfSize(4).ringRadius(1), 2.5);
+    // Footprint must not widen the ring. A Mortar of 11 reaches 11 tiles from
+    // its middle, the same as any other building with that range.
+    expect(typeOfSize(3).ringRadius(11), 11);
+    expect(typeOfSize(3).ringRadius(4), 4);
+    expect(typeOfSize(4).ringRadius(4), 4);
+    expect(typeOfSize(1).ringRadius(4), 4);
   });
 
   test('attack range survives a copy and defaults to none', () {
@@ -54,6 +53,6 @@ void main() {
 
     expect(type.attackRangeMin, 4);
     expect(type.attackRangeMax, 11);
-    expect(type.ringRadius(type.attackRangeMax), 12);
+    expect(type.ringRadius(type.attackRangeMax), 11);
   });
 }

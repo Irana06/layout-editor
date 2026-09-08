@@ -172,9 +172,9 @@ class BuildingType {
   final int defaultGridHeight;
   final bool showsDeploymentRing;
 
-  /// Attack range in tiles, counted outward from the footprint's edge tiles:
-  /// 1 is the ring of tiles touching the building. Zero means no range at all,
-  /// so nothing is drawn. A non-zero [attackRangeMin] is a blind spot.
+  /// Attack range in tiles from the building's centre, as the game states it.
+  /// Zero means no range at all, so nothing is drawn. A non-zero
+  /// [attackRangeMin] is a blind spot.
   final int attackRangeMin;
   final int attackRangeMax;
 
@@ -183,10 +183,12 @@ class BuildingType {
   final int displayOrder;
   final List<BuildingLevel> levels;
 
-  /// Radius of a range ring in tiles, measured from the building's centre to
-  /// the centre of the tile at that distance — which is where the game draws
-  /// it. Half the footprint gets it clear of the building itself.
-  double ringRadius(int range) => (defaultGridWidth - 1) / 2 + range;
+  /// Radius of a range ring, in tiles from the building's centre.
+  ///
+  /// The range *is* the radius: a Mortar of 11 reaches 11 tiles from its
+  /// middle, not 11 beyond its own footprint. Footprint width played no part —
+  /// adding half of it drew every multi-tile building's ring a tile too wide.
+  double ringRadius(int range) => range.toDouble();
 
   BuildingType copyWith({
     int? defaultGridWidth,
