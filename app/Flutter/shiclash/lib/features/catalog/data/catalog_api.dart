@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -44,20 +45,52 @@ class CatalogRepository extends ChangeNotifier {
   /// signal costs the latest data rather than the whole app.
   final OfflineStore? offline;
 
+  bool _refreshing = false;
+
   void invalidate() => notifyListeners();
 
+  /// A stored catalogue is served immediately and refreshed behind the screen.
+  ///
+  /// Asking the network first meant every screen waited for the request to fail
+  /// before reading a copy that was already on the device — several seconds of
+  /// nothing, on exactly the connection where the cache was supposed to help.
   Future<CatalogBootstrap> load() async {
-    try {
-      final payload = await _api.getBootstrap();
-      await offline?.rememberCatalog(payload);
-
-      return CatalogBootstrap.fromJson(payload);
-    } catch (error) {
-      final cached = await offline?.cachedCatalog();
-      if (cached == null) rethrow;
+    final cached = await offline?.cachedCatalog();
+    if (cached != null) {
+      unawaited(_refreshInBackground(cached));
 
       return CatalogBootstrap.fromJson(cached, fromCache: true);
     }
+
+    final payload = await _api.getBootstrap();
+    await offline?.rememberCatalog(payload);
+
+    return CatalogBootstrap.fromJson(payload);
+  }
+
+  /// Fetch a newer catalogue without making anyone wait for it. Listeners are
+  /// only told when the version actually moved: notifying on every refresh
+  /// would reload the screen, which would call load() again, forever.
+  Future<void> _refreshInBackground(Map<String, dynamic> cached) async {
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final payload = await _api.getBootstrap();
+      final before = _versionOf(cached);
+      final after = _versionOf(payload);
+      await offline?.rememberCatalog(payload);
+      if (after.isNotEmpty && after != before) notifyListeners();
+    } catch (_) {
+      // Offline is the expected case here, and the screen already has data.
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  String _versionOf(Map<String, dynamic> payload) {
+    final meta = payload['meta'];
+
+    return meta is Map ? meta['catalog_version'] as String? ?? '' : '';
   }
 }
 
