@@ -75,40 +75,25 @@ class _IsometricBoardState extends State<IsometricBoard> {
 
   void resetView() => _transform.value = Matrix4.identity();
 
-  /// Scale at which the whole scenery is visible. Sceneries are far larger than
-  /// a phone screen (a typical one is 3705x2545), so this is well below 1 and
-  /// must not be floored at a fixed minimum or the map never fits.
-  double _fitScaleFor(Size viewport, Scenery scenery) {
+  /// Smallest scale at which the scenery still covers the whole screen.
+  ///
+  /// Deliberately `max`, not `min`: fitting the entire map on screen would leave
+  /// bars of dead space along one axis, and the editor is meant to look like the
+  /// game, where the ground reaches every edge. Zooming out stops here, so no
+  /// amount of pinching reveals a void behind the map.
+  double _coverScaleFor(Size viewport, Scenery scenery) {
     final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
     final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
 
     return math
-        .min(viewport.width / sceneWidth, viewport.height / sceneHeight)
-        .clamp(.02, 1.0);
-  }
-
-  /// Slack the pan boundary needs so the fitted scenery can sit centred.
-  ///
-  /// A scenery rarely matches the screen's shape, so fitting it leaves bars on
-  /// one axis. With no slack that centred position is outside the boundary,
-  /// and the first touch would snap the map somewhere else — this grants
-  /// exactly the bar's width and nothing more, keeping the view inside the
-  /// scenery while letting it rest where it is placed.
-  EdgeInsets _boundaryFor(Size viewport, Scenery scenery) {
-    final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
-    final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
-    final scale = _fitScaleFor(viewport, scenery);
-
-    return EdgeInsets.symmetric(
-      horizontal: math.max(0, (viewport.width / scale - sceneWidth) / 2),
-      vertical: math.max(0, (viewport.height / scale - sceneHeight) / 2),
-    );
+        .max(viewport.width / sceneWidth, viewport.height / sceneHeight)
+        .clamp(.02, 4.0);
   }
 
   void _fitScene(Size viewport, Scenery scenery) {
     final sceneWidth = scenery.imageWidth > 0 ? scenery.imageWidth : 1600.0;
     final sceneHeight = scenery.imageHeight > 0 ? scenery.imageHeight : 1200.0;
-    final scale = _fitScaleFor(viewport, scenery);
+    final scale = _coverScaleFor(viewport, scenery);
     final dx = (viewport.width - sceneWidth * scale) / 2;
     final dy = (viewport.height - sceneHeight * scale) / 2;
     _transform.value = Matrix4.translationValues(dx, dy, 0)
@@ -161,13 +146,12 @@ class _IsometricBoardState extends State<IsometricBoard> {
                     transformationController: _transform,
                     constrained: false,
                     panEnabled: !controller.dragging,
-                    // The scenery is the whole world: zooming out stops once it
-                    // fills the screen, and panning stops at its edges. Letting
-                    // the view drift past them left the map floating in a black
-                    // void with nothing to aim at.
-                    minScale: _fitScaleFor(viewport, scenery),
-                    maxScale: 3.5,
-                    boundaryMargin: _boundaryFor(viewport, scenery),
+                    // The scenery is the whole world: it always covers the
+                    // screen, and panning stops at its edges. No slack is
+                    // needed now that the map is never smaller than the view.
+                    minScale: _coverScaleFor(viewport, scenery),
+                    maxScale: _coverScaleFor(viewport, scenery) * 4,
+                    boundaryMargin: EdgeInsets.zero,
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
                       onTapUp: _tap,
