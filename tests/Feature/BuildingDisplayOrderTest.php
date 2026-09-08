@@ -52,19 +52,48 @@ class BuildingDisplayOrderTest extends TestCase
         ], $order);
     }
 
-    public function test_alphabetical_order_is_only_the_tiebreak_inside_a_group(): void
+    public function test_defences_and_traps_keep_the_order_seen_in_the_game(): void
     {
-        $this->type('Archer Tower', 'defensive');
-        $this->type('Air Defense', 'defensive');
-        // Sorts after both despite starting with an earlier letter, because
-        // rank comes first and this one is pinned to the very front.
-        $this->type('Town Hall', 'resource');
+        // Observed in game at TH12, in this order. It matches no rule we could
+        // find — not the unlock level, and not the allowance except by accident
+        // among the traps — so it is asserted literally.
+        foreach (['Mortar', 'Cannon', 'Air Defense', 'Archer Tower', 'Wizard Tower'] as $name) {
+            $this->type($name, 'defensive');
+        }
+        foreach (['Giant Bomb', 'Bomb', 'Air Bomb', 'Spring Trap'] as $name) {
+            $this->type($name, 'traps');
+        }
 
         $order = BuildingDisplayOrder::sort(BuildingType::all())
             ->pluck('name')
             ->all();
 
-        $this->assertSame(['Town Hall', 'Air Defense', 'Archer Tower'], $order);
+        $this->assertSame([
+            'Cannon',
+            'Archer Tower',
+            'Wizard Tower',
+            'Air Defense',
+            'Mortar',
+            'Bomb',
+            'Spring Trap',
+            'Giant Bomb',
+            'Air Bomb',
+        ], $order);
+    }
+
+    public function test_unlisted_buildings_fall_behind_the_verified_sequence(): void
+    {
+        $this->type('Cannon', 'defensive');
+        // Neither appears in the observed list, so they follow it rather than
+        // pushing into the middle of positions taken from the game.
+        $this->type('Monolith', 'defensive');
+        $this->type('Firespitter', 'defensive');
+
+        $order = BuildingDisplayOrder::sort(BuildingType::all())
+            ->pluck('name')
+            ->all();
+
+        $this->assertSame(['Cannon', 'Firespitter', 'Monolith'], $order);
     }
 
     public function test_the_catalog_endpoint_hands_the_order_to_every_client(): void

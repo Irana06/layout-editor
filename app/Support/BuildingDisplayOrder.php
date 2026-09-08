@@ -41,13 +41,62 @@ class BuildingDisplayOrder
         'other' => 7000,
     ];
 
+    /**
+     * Order observed in the game itself, written down rather than derived.
+     *
+     * No rule reproduces it: the traps happen to run from most numerous to
+     * fewest, but the defences do not, and neither list follows the Town Hall
+     * that unlocks each building. It is most likely the game's own internal
+     * ordering, which cannot be inferred from outside — so guessing a formula
+     * would be wrong in places nobody would think to check. Anything missing
+     * here simply follows its category, sorted by name.
+     */
+    private const WITHIN_CATEGORY = [
+        'defensive' => [
+            'Cannon',
+            'Archer Tower',
+            'Wizard Tower',
+            'Air Defense',
+            'Mortar',
+            'Hidden Tesla',
+            'X-Bow',
+            'Inferno Tower',
+            'Air Sweeper',
+            'Eagle Artillery',
+            'Bomb Tower',
+            'Crafting Station',
+            // Limited-time defences, crafted at the station above.
+            'Hot Candle',
+            'Hero Hunter',
+            'Cake-A-Pult',
+        ],
+        'traps' => [
+            'Bomb',
+            'Spring Trap',
+            'Giant Bomb',
+            'Air Bomb',
+            'Seeking Air Mine',
+            'SkeletonTrap',
+            'Tornado Trap',
+        ],
+    ];
+
     public static function for(BuildingType $type): int
     {
         if (isset(self::PINNED[$type->name])) {
             return self::PINNED[$type->name];
         }
 
-        return (self::CATEGORIES[$type->category] ?? self::CATEGORIES['other']) + 500;
+        $base = self::CATEGORIES[$type->category] ?? self::CATEGORIES['other'];
+        $position = array_search(
+            $type->name,
+            self::WITHIN_CATEGORY[$type->category] ?? [],
+            strict: true,
+        );
+
+        // Unlisted buildings sit after the known sequence, not among it, so a
+        // newly imported asset never silently displaces a verified position.
+        return $base + ($position === false ? 500 : $position);
     }
 
     /**
