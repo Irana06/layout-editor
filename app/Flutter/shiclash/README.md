@@ -12,7 +12,7 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, duplikat, bagikan, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
 - **Calibrator · Admin**: kalibrasi grid/origin scenery serta footprint, skala, dan offset building per level. Mendukung zoom/pan, drag langsung, input presisi, undo/redo, reset, salin antar-level, transparansi preview, grid lock, dan proteksi perubahan yang belum disimpan.
-- **Lainnya**: akun dan backup, panduan kontrol, tes koneksi server, salin alamat server, dan informasi aplikasi.
+- **Lainnya**: akun dan backup, mode offline, panduan kontrol, tes koneksi server, salin alamat server, dan informasi aplikasi.
 - **Update**: cek GitHub Release secara otomatis saat aplikasi dibuka atau secara manual dari Lainnya. Tombol download membuka APK release; Android meminta persetujuan instalasi.
 
 Aplikasi dikunci pada orientasi potrait, kecuali layar editor landscape yang melepas kunci tersebut selama route-nya aktif. Sistem UI disembunyikan sementara di mode landscape supaya scenery terlihat penuh; usap dari tepi layar untuk memunculkannya kembali. Bilah bangunan dapat disembunyikan agar kanvas benar-benar bersih, dan kartu bangunan bisa diketuk untuk memilih atau ditarik langsung ke petak tujuan.
@@ -103,3 +103,11 @@ Repository variables berikut digunakan oleh build:
 Setelah secrets dan variables tersedia, naikkan versi lalu push tag yang cocok, misalnya `v0.2.0` untuk `version: 0.2.0+2`. Workflow akan menguji aplikasi, membuat APK universal bertanda tangan, lalu membuat GitHub Release beserta APK-nya.
 
 Jangan mengganti atau kehilangan keystore. Semua update Android untuk package `com.shiclash.editor` harus ditandatangani dengan key yang sama. APK lama yang masih memakai package ID contoh harus dihapus satu kali sebelum memasang release pertama.
+
+## Mode offline
+
+Katalog disimpan ke perangkat setiap kali berhasil dimuat, tanpa perlu diaktifkan. Kehilangan sinyal berarti kehilangan data terbaru, bukan kehilangan akses ke aplikasi — layout tetap bisa disusun dan diedit.
+
+Gambarnya berbeda karena jauh lebih besar, jadi hanya diunduh bila diminta. Buka **Lainnya → Mode offline** untuk mengunduh seluruh gambar bangunan dan scenery. Unduhan yang terputus dilanjutkan, bukan diulang, dan berkas yang belum tersimpan tetap diambil dari jaringan sehingga unduhan sebagian tetap berguna.
+
+Respons `/api/v1/bootstrap` membawa `meta.catalog_version`, sidik jari dari path berkas dan nilai kalibrasi. Nilai itu hanya berubah ketika katalognya benar-benar berubah, sehingga aplikasi dapat menandai aset yang usang tanpa menyuruh mengunduh ulang setiap kali. Versi hanya dicap saat seluruh berkas berhasil diunduh; unduhan sebagian tidak pernah mengaku terbaru.

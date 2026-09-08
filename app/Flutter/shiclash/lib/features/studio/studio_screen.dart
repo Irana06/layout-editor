@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
@@ -294,7 +295,7 @@ class _NewBaseScreenState extends State<NewBaseScreen> {
                       SizedBox(
                         height: 150,
                         width: double.infinity,
-                        child: Image.network(
+                        child: OfflineImage(
                           scenery.imageUrl,
                           fit: BoxFit.cover,
                           errorBuilder: (_, _, _) => const Center(

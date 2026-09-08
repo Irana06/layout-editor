@@ -1,3 +1,5 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -725,7 +727,7 @@ class _BuildingPalette extends StatelessWidget {
                         child: Column(
                           children: [
                             Expanded(
-                              child: Image.network(
+                              child: OfflineImage(
                                 level?.imageUrl ?? '',
                                 fit: BoxFit.contain,
                               ),
@@ -764,7 +766,7 @@ class _BuildingPalette extends StatelessWidget {
                       child: Column(
                         children: [
                           Expanded(
-                            child: Image.network(
+                            child: OfflineImage(
                               level?.imageUrl ?? '',
                               fit: BoxFit.contain,
                               errorBuilder: (_, _, _) => const Icon(

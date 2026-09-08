@@ -1,3 +1,5 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -108,7 +110,7 @@ class _CalibrationCanvasState extends State<CalibrationCanvas> {
                         clipBehavior: Clip.none,
                         children: [
                           Positioned.fill(
-                            child: Image.network(
+                            child: OfflineImage(
                               s.imageUrl,
                               fit: BoxFit.fill,
                               loadingBuilder: (context, child, progress) =>

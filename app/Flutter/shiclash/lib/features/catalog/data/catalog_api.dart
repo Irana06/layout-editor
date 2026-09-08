@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
+import 'package:shiclash/features/catalog/data/offline_store.dart';
 
 class CatalogApi {
   CatalogApi({HttpClient? client}) : _client = client ?? HttpClient();
@@ -35,14 +36,28 @@ class CatalogApi {
 }
 
 class CatalogRepository extends ChangeNotifier {
-  CatalogRepository(this._api);
+  CatalogRepository(this._api, {this.offline});
 
   final CatalogApi _api;
+
+  /// Optional: when present the catalogue is kept on the device, so losing
+  /// signal costs the latest data rather than the whole app.
+  final OfflineStore? offline;
 
   void invalidate() => notifyListeners();
 
   Future<CatalogBootstrap> load() async {
-    return CatalogBootstrap.fromJson(await _api.getBootstrap());
+    try {
+      final payload = await _api.getBootstrap();
+      await offline?.rememberCatalog(payload);
+
+      return CatalogBootstrap.fromJson(payload);
+    } catch (error) {
+      final cached = await offline?.cachedCatalog();
+      if (cached == null) rethrow;
+
+      return CatalogBootstrap.fromJson(cached, fromCache: true);
+    }
   }
 }
 

@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/config/app_config.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
@@ -626,7 +627,7 @@ class _NetworkArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (url.isEmpty) return const ColoredBox(color: AppColors.panelRaised);
-    return Image.network(
+    return OfflineImage(
       url,
       fit: fit,
       filterQuality: FilterQuality.medium,

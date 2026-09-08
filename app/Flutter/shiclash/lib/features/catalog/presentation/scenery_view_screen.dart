@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
@@ -36,7 +37,7 @@ class SceneryViewScreen extends StatelessWidget {
       body: InteractiveViewer(
         maxScale: 5,
         child: Center(
-          child: Image.network(
+          child: OfflineImage(
             scenery.imageUrl,
             fit: BoxFit.contain,
             errorBuilder: (_, _, _) => const Padding(

@@ -9,6 +9,7 @@ import 'package:shiclash/features/account/data/drive_backup_service.dart';
 import 'package:shiclash/features/account/data/google_account_controller.dart';
 import 'package:shiclash/features/account/presentation/account_gate.dart';
 import 'package:shiclash/features/catalog/data/catalog_api.dart';
+import 'package:shiclash/features/catalog/data/offline_store.dart';
 import 'package:shiclash/features/catalog/presentation/catalog_screen.dart';
 import 'package:shiclash/features/editor/presentation/editor_screen.dart';
 import 'package:shiclash/features/layouts/data/draft_store.dart';
@@ -48,6 +49,7 @@ class _AppShellState extends State<AppShell> {
   late final CatalogRepository _repository;
   late final List<Widget> _pages;
   final DraftStore _drafts = DraftStore();
+  final OfflineStore _offline = OfflineStore.instance;
   final UpdateService _updates = UpdateService();
   late final GoogleAccountController _account;
   final DriveBackupService _drive = DriveBackupService();
@@ -64,7 +66,8 @@ class _AppShellState extends State<AppShell> {
     _account = GoogleAccountController(enabled: widget.googleServicesEnabled)
       ..addListener(_onAccountChanged);
     _account.initialize();
-    _repository = CatalogRepository(CatalogApi());
+    _offline.load();
+    _repository = CatalogRepository(CatalogApi(), offline: _offline);
     _pages = [
       StudioScreen(
         store: _drafts,
@@ -81,6 +84,7 @@ class _AppShellState extends State<AppShell> {
         account: _account,
         drive: _drive,
         drafts: _drafts,
+        offline: _offline,
         onOpenAccount: () => setState(() => _continueOffline = false),
       ),
     ];

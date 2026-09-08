@@ -1,3 +1,5 @@
+import 'package:shiclash/features/catalog/data/offline_store.dart';
+import 'package:shiclash/features/catalog/presentation/offline_card.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/update/update_service.dart';
 import 'package:shiclash/core/update/update_install_dialog.dart';
@@ -16,6 +18,7 @@ class MoreScreen extends StatefulWidget {
     required this.account,
     required this.drive,
     required this.drafts,
+    required this.offline,
     required this.onOpenAccount,
   });
   final CatalogRepository repository;
@@ -23,6 +26,7 @@ class MoreScreen extends StatefulWidget {
   final GoogleAccountController account;
   final DriveBackupService drive;
   final DraftStore drafts;
+  final OfflineStore offline;
   final VoidCallback onOpenAccount;
   @override
   State<MoreScreen> createState() => _MoreScreenState();
@@ -203,6 +207,8 @@ class _MoreScreenState extends State<MoreScreen> {
         _accountCard(context),
         const SizedBox(height: 10),
         _supportCard(context),
+        const SizedBox(height: 10),
+        OfflineCard(store: widget.offline, repository: widget.repository),
         if (widget.account.isAdmin)
           Card(
             child: ListTile(

@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
@@ -34,7 +35,7 @@ class _BuildingDetailScreenState extends State<BuildingDetailScreen> {
             height: 230,
             child: level == null
                 ? const Icon(Icons.castle_outlined, size: 80)
-                : Image.network(
+                : OfflineImage(
                     level.imageUrl,
                     fit: BoxFit.contain,
                     errorBuilder: (_, _, _) => const Center(

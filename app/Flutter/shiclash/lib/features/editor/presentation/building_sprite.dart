@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
 
@@ -52,7 +53,7 @@ class BuildingSprite extends StatelessWidget {
               colorFilter: tint == null
                   ? const ColorFilter.mode(Colors.transparent, BlendMode.dst)
                   : ColorFilter.mode(tint!, BlendMode.srcATop),
-              child: Image.network(
+              child: OfflineImage(
                 level.imageUrl,
                 width: width,
                 fit: BoxFit.fitWidth,

@@ -3,12 +3,20 @@ class CatalogBootstrap {
     required this.sceneries,
     required this.buildingTypes,
     required this.unlockRules,
+    this.version = '',
+    this.fromCache = false,
   });
 
-  factory CatalogBootstrap.fromJson(Map<String, dynamic> json) {
+  factory CatalogBootstrap.fromJson(
+    Map<String, dynamic> json, {
+    bool fromCache = false,
+  }) {
     final data = json['data'] as Map<String, dynamic>? ?? const {};
+    final meta = json['meta'] as Map<String, dynamic>? ?? const {};
 
     return CatalogBootstrap(
+      version: meta['catalog_version'] as String? ?? '',
+      fromCache: fromCache,
       sceneries: _list(data['sceneries'])
           .map((item) => Scenery.fromJson(item))
           .toList(growable: false),
@@ -24,6 +32,23 @@ class CatalogBootstrap {
   final List<Scenery> sceneries;
   final List<BuildingType> buildingTypes;
   final List<BuildingUnlockRule> unlockRules;
+
+  /// Fingerprint of the catalogue, used to tell a stored copy of the images
+  /// apart from a newer one on the server.
+  final String version;
+
+  /// True when this came off the device because the server could not be
+  /// reached — the app works, but may be out of date.
+  final bool fromCache;
+
+  /// Every image this catalogue refers to, for a full offline download.
+  List<String> get imageUrls => [
+    for (final scenery in sceneries)
+      if (scenery.imageUrl.isNotEmpty) scenery.imageUrl,
+    for (final type in buildingTypes)
+      for (final level in type.levels)
+        if (level.imageUrl.isNotEmpty) level.imageUrl,
+  ];
 
   CatalogBootstrap withUnlockRules(List<BuildingUnlockRule> rules) =>
       CatalogBootstrap(

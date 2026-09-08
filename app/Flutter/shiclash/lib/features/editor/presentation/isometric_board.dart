@@ -1,3 +1,5 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -172,7 +174,7 @@ class _IsometricBoardState extends State<IsometricBoard> {
                           clipBehavior: Clip.none,
                           children: [
                             Positioned.fill(
-                              child: Image.network(
+                              child: OfflineImage(
                                 scenery.imageUrl,
                                 fit: BoxFit.fill,
                                 errorBuilder: (_, _, _) => const ColoredBox(

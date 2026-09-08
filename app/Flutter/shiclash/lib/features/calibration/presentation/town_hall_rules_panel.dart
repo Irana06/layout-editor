@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/calibration/data/calibration_api.dart';
@@ -354,7 +355,7 @@ class TownHallRulesPanelState extends State<TownHallRulesPanel> {
             children: [
               SizedBox.square(
                 dimension: 52,
-                child: Image.network(
+                child: OfflineImage(
                   image,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) =>

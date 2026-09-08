@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/catalog/data/catalog_models.dart';
@@ -187,7 +188,7 @@ class _BuildingIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox.square(
     dimension: size,
-    child: Image.network(
+    child: OfflineImage(
       url,
       fit: BoxFit.contain,
       errorBuilder: (_, _, _) => const Icon(Icons.home_work_outlined),

@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
@@ -361,7 +362,7 @@ class _DockCard extends StatelessWidget {
                 child: Column(
                   children: [
                     Expanded(
-                      child: Image.network(
+                      child: OfflineImage(
                         level?.imageUrl ?? '',
                         fit: BoxFit.contain,
                         errorBuilder: (_, _, _) => const Icon(
@@ -424,7 +425,7 @@ class _DockCard extends StatelessWidget {
         child: SizedBox(
           width: 64,
           height: 64,
-          child: Image.network(level?.imageUrl ?? '', fit: BoxFit.contain),
+          child: OfflineImage(level?.imageUrl ?? '', fit: BoxFit.contain),
         ),
       ),
       childWhenDragging: Opacity(opacity: .35, child: card),

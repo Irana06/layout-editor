@@ -1,3 +1,4 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shiclash/core/theme/app_theme.dart';
 import 'package:shiclash/features/editor/domain/editor_controller.dart';
@@ -56,7 +57,7 @@ class SelectionCard extends StatelessWidget {
                 children: [
                   SizedBox.square(
                     dimension: 34,
-                    child: Image.network(
+                    child: OfflineImage(
                       level.imageUrl,
                       fit: BoxFit.contain,
                       errorBuilder: (_, _, _) => const Icon(

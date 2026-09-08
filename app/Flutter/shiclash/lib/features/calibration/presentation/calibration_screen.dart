@@ -1,3 +1,5 @@
+import 'package:shiclash/features/catalog/presentation/offline_image.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -776,7 +778,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
           children: [
             SizedBox.square(
               dimension: 54,
-              child: Image.network(
+              child: OfflineImage(
                 level?.imageUrl ?? '',
                 fit: BoxFit.contain,
                 errorBuilder: (_, _, _) => const Icon(Icons.home_work_outlined),
