@@ -484,12 +484,15 @@ class ImportLegacyAssets extends Command
 
             $imageSize = @getimagesize($file->getPathname()) ?: [0, 0];
 
-            Scenery::query()->updateOrCreate(
-                ['file_path' => $destination],
-                [
-                    'name' => $metadata['name'] ?? Str::of(pathinfo($file->getFilename(), PATHINFO_FILENAME))->replace(['-', '_'], ' ')->title()->toString(),
-                    'image_width' => (int) $imageSize[0],
-                    'image_height' => (int) $imageSize[1],
+            $scenery = Scenery::query()->firstOrNew(['file_path' => $destination]);
+
+            // Grid, origin and tile size are set by hand in the Calibrator and
+            // cannot be re-derived from the image, so a re-import must leave
+            // them alone. The manifest only ever carries defaults, and writing
+            // those over a calibrated scenery destroys work with no warning —
+            // which is exactly what it did before this guard existed.
+            if (! $scenery->exists) {
+                $scenery->fill([
                     'tile_w' => (float) ($grid['tileW'] ?? 56),
                     'tile_h' => (float) ($grid['tileH'] ?? 42),
                     'origin_x' => (float) ($grid['originX'] ?? 0),
@@ -497,8 +500,14 @@ class ImportLegacyAssets extends Command
                     'grid_n' => max(1, (int) ($grid['n'] ?? 44)),
                     'calibrated' => (bool) ($grid['calibrated'] ?? false),
                     'locked' => (bool) ($grid['locked'] ?? false),
-                ],
-            );
+                ]);
+            }
+
+            $scenery->fill([
+                'name' => $metadata['name'] ?? Str::of(pathinfo($file->getFilename(), PATHINFO_FILENAME))->replace(['-', '_'], ' ')->title()->toString(),
+                'image_width' => (int) $imageSize[0],
+                'image_height' => (int) $imageSize[1],
+            ])->save();
 
             $bar->advance();
         }
