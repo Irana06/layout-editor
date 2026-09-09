@@ -20,11 +20,14 @@ class CalibrationCanvas extends StatefulWidget {
     required this.onDrag,
     required this.onStart,
     required this.onEnd,
+    this.attackRangeMin = 0,
+    this.attackRangeMax = 0,
   });
   final Scenery scenery;
   final BuildingType? type;
   final BuildingLevel? level;
   final bool editMode, showGrid, showDeploymentRing;
+  final int attackRangeMin, attackRangeMax;
   final double opacity;
   final ValueChanged<Offset> onDrag;
   final VoidCallback onStart, onEnd;
@@ -139,6 +142,8 @@ class _CalibrationCanvasState extends State<CalibrationCanvas> {
                                   footprint: widget.level == null
                                       ? null
                                       : Rect.fromLTWH(gx, gy, fw, fh),
+                                  attackRangeMin: widget.attackRangeMin,
+                                  attackRangeMax: widget.attackRangeMax,
                                 ),
                               ),
                             ),
@@ -182,11 +187,19 @@ class CalibrationGridPainter extends CustomPainter {
     required this.showGrid,
     required this.showDeploymentRing,
     this.footprint,
+    this.attackRangeMin = 0,
+    this.attackRangeMax = 0,
   });
   final Scenery scenery;
   final bool showGrid;
   final bool showDeploymentRing;
   final Rect? footprint;
+
+  /// Reach being calibrated, in tiles from the building's centre. Drawn here so
+  /// a number typed into the form can be judged against the map rather than
+  /// only seen once it reaches the editor.
+  final int attackRangeMin;
+  final int attackRangeMax;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -273,6 +286,7 @@ class CalibrationGridPainter extends CustomPainter {
         footprint!.center.dy,
       );
       canvas.drawCircle(center, 4, Paint()..color = Colors.cyanAccent);
+      _drawAttackRange(canvas, center);
     } else {
       final origin = isoPoint(scenery, 0, 0);
       final axis = Paint()
@@ -289,6 +303,32 @@ class CalibrationGridPainter extends CustomPainter {
         axis,
       );
     }
+  }
+
+  /// The same rings the editor draws, so what is calibrated here is what gets
+  /// seen there. A circle on the ground is an ellipse on screen, each axis
+  /// scaled by its own tile size.
+  void _drawAttackRange(Canvas canvas, Offset centre) {
+    if (attackRangeMax <= 0) return;
+    final stroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = Colors.white.withValues(alpha: .85);
+    final fill = Paint()..color = Colors.white.withValues(alpha: .07);
+
+    void ring(int range, {required bool filled}) {
+      if (range <= 0) return;
+      final box = Rect.fromCenter(
+        center: centre,
+        width: range * scenery.tileWidth * math.sqrt2,
+        height: range * scenery.tileHeight * math.sqrt2,
+      );
+      if (filled) canvas.drawOval(box, fill);
+      canvas.drawOval(box, stroke);
+    }
+
+    ring(attackRangeMax, filled: true);
+    ring(attackRangeMin, filled: false);
   }
 
   @override

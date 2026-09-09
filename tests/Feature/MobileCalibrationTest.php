@@ -102,6 +102,38 @@ class MobileCalibrationTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
+    public function test_the_longest_attack_range_in_the_game_is_accepted(): void
+    {
+        $type = BuildingType::create(['name' => 'Eagle Artillery', 'category' => 'defensive', 'default_grid_width' => 4, 'default_grid_height' => 4]);
+
+        // Eagle Artillery reaches 50 tiles; an earlier ceiling of 40 refused
+        // the real value.
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-types/{$type->id}", [
+                'attack_range_min' => 7,
+                'attack_range_max' => 50,
+            ])->assertOk();
+
+        $this->assertSame(50, $type->fresh()->attack_range_max);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-types/{$type->id}", ['attack_range_max' => 61])
+            ->assertStatus(422);
+    }
+
+    public function test_a_blind_spot_cannot_reach_past_the_range(): void
+    {
+        $type = BuildingType::create(['name' => 'Mortar', 'category' => 'defensive', 'default_grid_width' => 3, 'default_grid_height' => 3]);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-types/{$type->id}", [
+                'attack_range_min' => 20,
+                'attack_range_max' => 11,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('attack_range_min');
+    }
+
     public function test_tile_size_set_on_one_level_is_shared_by_every_other_level(): void
     {
         $type = BuildingType::create(['name' => 'Town Hall', 'category' => 'resource', 'default_grid_width' => 3, 'default_grid_height' => 3]);

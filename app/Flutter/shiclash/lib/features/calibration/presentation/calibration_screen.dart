@@ -552,6 +552,16 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                                       as bool? ??
                                   _type!.showsDeploymentRing)
                             : true,
+                        // Drawn from the draft, not the saved type, so a range
+                        // typed into the form is visible before saving it.
+                        attackRangeMin: _building
+                            ? (_draft!.values['attack_range_min'] as int? ??
+                                  _type!.attackRangeMin)
+                            : 0,
+                        attackRangeMax: _building
+                            ? (_draft!.values['attack_range_max'] as int? ??
+                                  _type!.attackRangeMax)
+                            : 0,
                         opacity: 1,
                         onDrag: _drag,
                         onStart: _draft!.beginGesture,
@@ -1106,7 +1116,7 @@ class _NumberControlState extends State<_NumberControl> {
 
 /// Whole-tile range input. Kept to a plain number field rather than a slider
 /// because these are exact values read off the game, not things to eyeball.
-class _RangeField extends StatelessWidget {
+class _RangeField extends StatefulWidget {
   const _RangeField({
     required this.label,
     required this.value,
@@ -1114,22 +1124,54 @@ class _RangeField extends StatelessWidget {
     required this.onChanged,
   });
 
+  /// Eagle Artillery reaches 50 tiles, the longest in the game. The ceiling is
+  /// only here to catch a slipped keypress, not to describe anything.
+  static const int maxTiles = 60;
+
   final String label;
   final int value;
   final bool enabled;
   final ValueChanged<int> onChanged;
 
   @override
+  State<_RangeField> createState() => _RangeFieldState();
+}
+
+class _RangeFieldState extends State<_RangeField> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.value.toString(),
+  );
+
+  @override
+  void didUpdateWidget(_RangeField old) {
+    super.didUpdateWidget(old);
+    // Only overwrite the box when the value came from somewhere else — picking
+    // another building, or resetting. Rewriting it while someone is typing
+    // would move the cursor and, worse, drop the second digit of "50".
+    final typed = int.tryParse(_controller.text.trim());
+    if (widget.value != typed) {
+      _controller.text = widget.value.toString();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      key: ValueKey('$label-$value'),
-      initialValue: value.toString(),
-      enabled: enabled,
+    return TextField(
+      controller: _controller,
+      enabled: widget.enabled,
       keyboardType: TextInputType.number,
-      decoration: InputDecoration(labelText: label, isDense: true),
+      decoration: InputDecoration(labelText: widget.label, isDense: true),
       onChanged: (text) {
         final parsed = int.tryParse(text.trim());
-        if (parsed != null && parsed >= 0 && parsed <= 40) onChanged(parsed);
+        if (parsed != null && parsed >= 0 && parsed <= _RangeField.maxTiles) {
+          widget.onChanged(parsed);
+        }
       },
     );
   }
