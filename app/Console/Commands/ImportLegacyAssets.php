@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\BuildingLevel;
 use App\Models\BuildingType;
 use App\Models\Scenery;
+use App\Support\BuildingVariants;
 use App\Support\GameAssetUploader;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
@@ -14,7 +15,7 @@ use RecursiveIteratorIterator;
 use SplFileInfo;
 
 /**
- * @phpstan-type Candidate array{file: SplFileInfo, category: string, subfolder: string|null, typeName: string, level: int, variantSuffix: string, metadata: array<string, mixed>}
+ * @phpstan-type Candidate array{file: SplFileInfo, category: string, subfolder: string|null, typeName: string, level: int, variantSuffix: string, mode: string|null, metadata: array<string, mixed>}
  */
 class ImportLegacyAssets extends Command
 {
@@ -127,7 +128,12 @@ class ImportLegacyAssets extends Command
                 continue;
             }
 
-            $key = implode('|', [$category, $subfolder, Str::lower($typeName), $level]);
+            // A mode is a separate artwork the player chooses between, so it gets
+            // its own group and its own row. Every other suffix — depleted,
+            // unarmed, historical art — still competes for one slot.
+            $mode = BuildingVariants::modeFor($subfolder, $variantSuffix);
+
+            $key = implode('|', [$category, $subfolder, Str::lower($typeName), $level, $mode ?? '']);
             $groups[$key][] = [
                 'file' => $file,
                 'category' => $category,
@@ -135,6 +141,7 @@ class ImportLegacyAssets extends Command
                 'typeName' => $typeName,
                 'level' => $level,
                 'variantSuffix' => $variantSuffix,
+                'mode' => $mode,
                 'metadata' => $metadata,
             ];
         }
@@ -163,42 +170,92 @@ class ImportLegacyAssets extends Command
                 ? 1
                 : max(1, (int) ($chosen['metadata']['gridSize'] ?? $this->defaultGridSize($chosen['category'])));
 
-            $type = BuildingType::query()->updateOrCreate(
-                [
-                    'category' => $chosen['category'],
-                    'subfolder' => $chosen['subfolder'],
-                    'name' => $chosen['typeName'],
-                ],
-                [
-                    'is_town_hall' => $isTownHall,
-                    'default_grid_width' => $gridSize,
-                    'default_grid_height' => $gridSize,
-                ],
-            );
+            $type = BuildingType::query()->firstOrNew([
+                'category' => $chosen['category'],
+                'subfolder' => $chosen['subfolder'],
+                'name' => $chosen['typeName'],
+            ]);
+
+            // The manifest's grid size is a guess — it only ever says 1, 2 or 3,
+            // so it has Town Hall at 3x3 and every trap at 2x2. A footprint
+            // corrected in the Calibrator is worth more than that, and must
+            // survive a re-import.
+            if (! $type->exists) {
+                $type->default_grid_width = $gridSize;
+                $type->default_grid_height = $gridSize;
+            }
+            $type->is_town_hall = $isTownHall;
+            $type->save();
 
             $extension = $chosen['file']->getExtension();
-            $destination = sprintf('buildings/%s/%s/%d.%s', $chosen['category'], $chosen['subfolder'] ?? 'misc', $chosen['level'], $extension);
+            $destination = sprintf(
+                'buildings/%s/%s/%d%s.%s',
+                $chosen['category'],
+                $chosen['subfolder'] ?? 'misc',
+                $chosen['level'],
+                $chosen['mode'] === null ? '' : '-'.$chosen['mode'],
+                $extension,
+            );
             $this->uploader->copyToPublicGame($chosen['file']->getPathname(), $destination, (bool) $this->option('force'));
 
             $calibration = $chosen['metadata']['calibration'] ?? [];
 
-            BuildingLevel::query()->updateOrCreate(
-                ['building_type_id' => $type->id, 'level' => $chosen['level']],
-                [
-                    'file_path' => $destination,
-                    'scale' => (float) ($calibration['scale'] ?? 1),
-                    'offset_x' => (float) ($calibration['offsetX'] ?? 0),
-                    'offset_y' => (float) ($calibration['offsetY'] ?? 0),
-                ],
-            );
+            $levelRow = BuildingLevel::query()->firstOrNew([
+                'building_type_id' => $type->id,
+                'level' => $chosen['level'],
+                'variant' => $chosen['mode'],
+            ]);
+
+            // Same reasoning as the footprint: every calibration value in the
+            // manifest is a placeholder (scale 1, offset 0), so re-importing
+            // must not undo work done by hand in the Calibrator.
+            if (! $levelRow->exists) {
+                $levelRow->scale = (float) ($calibration['scale'] ?? 1);
+                $levelRow->offset_x = (float) ($calibration['offsetX'] ?? 0);
+                $levelRow->offset_y = (float) ($calibration['offsetY'] ?? 0);
+            }
+            $levelRow->file_path = $destination;
+            $levelRow->save();
 
             $count++;
             $bar->advance();
         }
 
         $bar->finish();
+        $this->retireSupersededLevels();
 
         return $count;
+    }
+
+    /**
+     * Drop the single unlabelled row a mode-carrying building used to have.
+     *
+     * Before modes existed the importer kept one artwork per level, so an
+     * Inferno Tower has a variant-less row pointing at whichever of Single and
+     * Multi happened to win. Now that both exist as their own rows, that leftover
+     * would show up as a third, nameless choice in the library.
+     */
+    private function retireSupersededLevels(): void
+    {
+        $types = BuildingType::query()
+            ->whereHas('levels', fn ($query) => $query->whereNotNull('variant'))
+            ->get();
+
+        foreach ($types as $type) {
+            if (! BuildingVariants::hasModes($type->subfolder)) {
+                continue;
+            }
+
+            $withModes = $type->levels()->whereNotNull('variant')->pluck('level')->unique();
+            $removed = $type->levels()
+                ->whereNull('variant')
+                ->whereIn('level', $withModes)
+                ->delete();
+
+            if ($removed > 0) {
+                $this->warn("Removed {$removed} unlabelled level(s) of '{$type->name}' now covered by modes.");
+            }
+        }
     }
 
     /**

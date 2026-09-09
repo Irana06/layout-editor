@@ -8,6 +8,7 @@ use App\Models\BuildingType;
 use App\Models\BuildingUnlockRule;
 use App\Models\Scenery;
 use App\Support\BuildingDisplayOrder;
+use App\Support\BuildingVariants;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
 
@@ -45,7 +46,7 @@ class BootstrapController extends Controller
                 $type->default_grid_width, $type->default_grid_height,
                 $type->attack_range_min, $type->attack_range_max,
                 $type->levels->map(fn (BuildingLevel $level): array => [
-                    $level->id, $level->file_path, $level->level,
+                    $level->id, $level->file_path, $level->level, $level->variant,
                     $level->scale, $level->offset_x, $level->offset_y,
                     $level->grid_width, $level->grid_height,
                 ])->all(),
@@ -91,6 +92,10 @@ class BootstrapController extends Controller
                     'attack_range_min', 'attack_range_max',
                 ]),
                 'display_order' => BuildingDisplayOrder::for($type),
+                // Which modes this building offers and what to call them, so the
+                // clients render the choice without keeping their own copy of
+                // the table.
+                'modes' => BuildingVariants::labelsFor($type->subfolder),
                 'levels' => $type->levels->map(fn (BuildingLevel $level): array => [
                     ...$level->toArray(),
                     'image_url' => $assetUrl($level->file_path),

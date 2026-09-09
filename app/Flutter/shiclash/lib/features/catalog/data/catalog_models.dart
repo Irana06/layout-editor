@@ -281,11 +281,13 @@ class BuildingLevel {
     required this.scale,
     required this.offsetX,
     required this.offsetY,
+    this.variant,
   });
 
   factory BuildingLevel.fromJson(Map<String, dynamic> json) => BuildingLevel(
     id: _int(json['id']),
     level: _int(json['level']),
+    variant: json['variant'] as String?,
     imageUrl: json['image_url'] as String? ?? '',
     gridWidth: json['grid_width'] == null ? null : _int(json['grid_width']),
     gridHeight: json['grid_height'] == null ? null : _int(json['grid_height']),
@@ -296,6 +298,11 @@ class BuildingLevel {
 
   final int id;
   final int level;
+
+  /// Which mode this artwork is, for buildings the player chooses between —
+  /// an Inferno Tower's `single`/`multi`, an X-Bow's `ground`/`air`. Null for
+  /// the ordinary case of one artwork per level.
+  final String? variant;
   final String imageUrl;
   final int? gridWidth;
   final int? gridHeight;
@@ -306,6 +313,7 @@ class BuildingLevel {
   BuildingLevel withCalibration(Map<String, dynamic> values) => BuildingLevel(
     id: id,
     level: level,
+    variant: variant,
     imageUrl: imageUrl,
     gridWidth: values['grid_width'] as int?,
     gridHeight: values['grid_height'] as int?,
@@ -321,6 +329,7 @@ class BuildingLevel {
       BuildingLevel(
         id: id,
         level: level,
+        variant: variant,
         imageUrl: imageUrl,
         gridWidth: gridWidth,
         gridHeight: gridHeight,
@@ -332,6 +341,7 @@ class BuildingLevel {
   BuildingLevel withFootprint({int? width, int? height}) => BuildingLevel(
     id: id,
     level: level,
+    variant: variant,
     imageUrl: imageUrl,
     gridWidth: width,
     gridHeight: height,
