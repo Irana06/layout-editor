@@ -184,9 +184,12 @@ class BuildingType {
     attackRangeMin: _int(json['attack_range_min']),
     attackRangeMax: _int(json['attack_range_max']),
     displayOrder: _int(json['display_order'], fallback: 9999),
+    // Read defensively rather than cast: an empty map is `[]` in JSON coming
+    // from PHP, and a client that insists on a map crashes on the first
+    // building without modes — which is nearly all of them.
     modes: {
-      for (final entry in ((json['modes'] as Map?) ?? const {}).entries)
-        '${entry.key}': '${entry.value}',
+      if (json['modes'] case final Map raw)
+        for (final entry in raw.entries) '${entry.key}': '${entry.value}',
     },
     levels: _list(json['levels'])
         .map((item) => BuildingLevel.fromJson(item))

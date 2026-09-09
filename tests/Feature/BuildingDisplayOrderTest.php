@@ -96,6 +96,19 @@ class BuildingDisplayOrderTest extends TestCase
         $this->assertSame(['Cannon', 'Firespitter', 'Monolith'], $order);
     }
 
+    public function test_a_building_without_modes_sends_an_object_not_a_list(): void
+    {
+        $this->type('Cannon', 'defensive');
+
+        // An empty PHP array serialises as `[]`, which is a list. Clients read
+        // `modes` as a map, so that shape crashed them on the first building
+        // without modes — which is nearly every building.
+        $this->assertStringContainsString(
+            '"modes":{}',
+            $this->getJson('/api/v1/bootstrap')->assertOk()->getContent(),
+        );
+    }
+
     public function test_the_catalog_endpoint_hands_the_order_to_every_client(): void
     {
         $this->type('Cannon', 'defensive');

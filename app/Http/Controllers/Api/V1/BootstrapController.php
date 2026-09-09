@@ -94,8 +94,10 @@ class BootstrapController extends Controller
                 'display_order' => BuildingDisplayOrder::for($type),
                 // Which modes this building offers and what to call them, so the
                 // clients render the choice without keeping their own copy of
-                // the table.
-                'modes' => BuildingVariants::labelsFor($type->subfolder),
+                // the table. Cast to an object because an empty PHP array
+                // serialises as `[]`, and most buildings have no modes — which
+                // handed every client a list where it expected a map.
+                'modes' => (object) BuildingVariants::labelsFor($type->subfolder),
                 'levels' => $type->levels->map(fn (BuildingLevel $level): array => [
                     ...$level->toArray(),
                     'image_url' => $assetUrl($level->file_path),

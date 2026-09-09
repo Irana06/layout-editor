@@ -147,6 +147,23 @@ void main() {
     expect(reopened.placements.single.variant, 'multi');
   });
 
+  test('an empty modes list is read as no modes, not as a crash', () {
+    // PHP serialises an empty map as `[]`, so a building without modes arrives
+    // as a list. Insisting on a map here took down every screen that loads the
+    // catalogue, since nearly every building has no modes.
+    final type = BuildingType.fromJson(const {
+      'id': 9,
+      'name': 'Cannon',
+      'category': 'defensive',
+      'default_grid_width': 3,
+      'default_grid_height': 3,
+      'modes': [],
+      'levels': [],
+    });
+
+    expect(type.modes, isEmpty);
+  });
+
   test('a retired mode falls back instead of rejecting the whole draft', () {
     place(2, 4, 4);
     final document = controller.toLayout();
