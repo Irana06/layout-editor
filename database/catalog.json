@@ -1,6 +1,6 @@
 {
     "version": 1,
-    "exported_at": "2026-09-09T15:40:19+00:00",
+    "exported_at": "2026-09-09T16:53:16+00:00",
     "sceneries": [
         {
             "name": "10th clashiversary",
@@ -256,10 +256,10 @@
             "image_height": 2545,
             "tile_w": 56,
             "tile_h": 42,
-            "origin_x": 0,
-            "origin_y": 0,
+            "origin_x": 1895,
+            "origin_y": 250,
             "grid_n": 44,
-            "calibrated": false,
+            "calibrated": true,
             "locked": false
         },
         {
