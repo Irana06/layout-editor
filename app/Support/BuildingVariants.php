@@ -53,6 +53,25 @@ class BuildingVariants
             'invisibility' => ['invisibility', 'Invisibility'],
             'earthquake' => ['earthquake', 'Earthquake'],
         ],
+        // Gear Up comes in three artworks, not two: the plain building, the
+        // same building wearing the lever that switches it, and the geared
+        // form. Cannon and Mortar mark the levered one by leaving the suffix
+        // off; Archer Tower marks it "Up" and leaves its plain one unsuffixed.
+        'cannon' => [
+            'b' => ['plain', 'Biasa'],
+            '' => ['lever', 'Bertuas'],
+            'g' => ['geared', 'Gear Up'],
+        ],
+        'mortar' => [
+            'b' => ['plain', 'Biasa'],
+            '' => ['lever', 'Bertuas'],
+            'g' => ['geared', 'Gear Up'],
+        ],
+        'archer-tower' => [
+            '' => ['plain', 'Biasa'],
+            'up' => ['lever', 'Bertuas'],
+            'g' => ['geared', 'Gear Up'],
+        ],
     ];
 
     /**
@@ -65,9 +84,21 @@ class BuildingVariants
      */
     public static function modeFor(?string $subfolder, string $suffix): ?string
     {
-        $clean = Str::lower(trim($suffix));
+        $modes = self::MODES[$subfolder ?? ''] ?? [];
+        // Historical art is an older drawing of some mode, not a mode of its
+        // own, so "Cannon7B pre May-15-2023" resolves to the same mode as
+        // "Cannon7B" and simply loses to it as a duplicate.
+        $clean = Str::lower(trim((string) preg_replace('/\s*\bpre\s+.*$/i', '', trim($suffix))));
 
-        return self::MODES[$subfolder ?? ''][$clean][0] ?? null;
+        if (isset($modes[$clean])) {
+            return $modes[$clean][0];
+        }
+
+        // Where the unsuffixed artwork is itself a mode — a Cannon before it is
+        // geared — every other suffix is a state of that mode rather than a
+        // mode of its own, so "Cannon7 pre May-15-2023" belongs with it instead
+        // of forming a nameless third choice.
+        return isset($modes['']) ? $modes[''][0] : null;
     }
 
     /** Whether this subfolder offers a mode choice at all. */
@@ -90,5 +121,14 @@ class BuildingVariants
         }
 
         return $labels;
+    }
+
+    /**
+     * True when a suffix names a mode outright, rather than falling back to the
+     * default one. Used to tell a real second artwork from a state of the first.
+     */
+    public static function isExplicitMode(?string $subfolder, string $suffix): bool
+    {
+        return isset(self::MODES[$subfolder ?? ''][Str::lower(trim($suffix))]);
     }
 }

@@ -252,8 +252,17 @@ class ImportLegacyAssets extends Command
                 ->whereIn('level', $withModes)
                 ->delete();
 
+            // Modes that no longer exist leave rows behind — renaming a mode,
+            // or splitting one into several, would otherwise pile the old and
+            // the new on top of each other in the library.
+            $known = array_keys(BuildingVariants::labelsFor($type->subfolder));
+            $removed += $type->levels()
+                ->whereNotNull('variant')
+                ->whereNotIn('variant', $known)
+                ->delete();
+
             if ($removed > 0) {
-                $this->warn("Removed {$removed} unlabelled level(s) of '{$type->name}' now covered by modes.");
+                $this->warn("Removed {$removed} superseded level row(s) of '{$type->name}'.");
             }
         }
     }
