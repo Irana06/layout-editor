@@ -39,35 +39,38 @@ class BuildingVariantsTest extends TestCase
         $this->assertSame([], BuildingVariants::labelsFor('wall'));
     }
 
-    public function test_gear_up_has_three_artworks_not_two(): void
+    public function test_gear_up_is_a_separate_building_not_a_mode(): void
     {
-        // Plain, the same building wearing the lever that switches it, and the
-        // geared form. Cannon and Mortar leave the suffix off the levered one;
-        // Archer Tower marks that "Up" and leaves its plain one unsuffixed.
+        // In the game these are two entries: six plain Cannons and one that
+        // carries the lever. Only the levered one toggles once placed, so the
+        // ordinary Cannon must offer no modes at all.
+        $this->assertSame([], BuildingVariants::labelsFor('cannon'));
         $this->assertSame(
-            ['normal' => 'Biasa', 'lever' => 'Bertuas', 'geared' => 'Gear Up'],
-            BuildingVariants::labelsFor('cannon'),
+            ['normal' => 'Normal', 'geared' => 'Gear Up'],
+            BuildingVariants::labelsFor('cannon-gear'),
         );
 
-        $this->assertSame('normal', BuildingVariants::modeFor('cannon', 'B'));
-        $this->assertSame('lever', BuildingVariants::modeFor('cannon', ''));
-        $this->assertSame('geared', BuildingVariants::modeFor('cannon', 'G'));
+        $this->assertSame('ordinary', BuildingVariants::gearOwnerFor('cannon', 'B'));
+        $this->assertSame('gear', BuildingVariants::gearOwnerFor('cannon', ''));
+        $this->assertSame('gear', BuildingVariants::gearOwnerFor('cannon', 'G'));
 
-        $this->assertSame('normal', BuildingVariants::modeFor('archer-tower', ''));
-        $this->assertSame('lever', BuildingVariants::modeFor('archer-tower', 'Up'));
-        $this->assertSame('geared', BuildingVariants::modeFor('archer-tower', 'G'));
+        // Archer Tower marks the levered one instead, keeping its plain file
+        // for the ordinary tower.
+        $this->assertSame('ordinary', BuildingVariants::gearOwnerFor('archer-tower', ''));
+        $this->assertSame('gear', BuildingVariants::gearOwnerFor('archer-tower', 'Up'));
     }
 
-    public function test_older_art_belongs_to_the_mode_it_depicts(): void
+    public function test_older_art_belongs_to_the_building_it_depicts(): void
     {
-        // "Cannon7B pre May-15-2023" is an old drawing of the plain cannon, so
-        // it competes with the current one rather than becoming a fourth mode.
-        $this->assertSame('normal', BuildingVariants::modeFor('cannon', 'B pre May-15-2023'));
-        $this->assertSame('geared', BuildingVariants::modeFor('cannon', 'G pre May-15-2023'));
-        $this->assertSame('lever', BuildingVariants::modeFor('cannon', 'pre May-15-2023'));
+        // "Cannon7B pre May-15-2023" is an old drawing of the plain Cannon, so
+        // it stays with the ordinary building rather than crossing over.
+        $this->assertSame('ordinary', BuildingVariants::gearOwnerFor('cannon', 'B pre May-15-2023'));
+        $this->assertSame('gear', BuildingVariants::gearOwnerFor('cannon', 'G pre May-15-2023'));
+        $this->assertSame('gear', BuildingVariants::gearOwnerFor('cannon', 'pre May-15-2023'));
 
-        $this->assertFalse(BuildingVariants::isExplicitMode('cannon', 'pre May-15-2023'));
-        $this->assertTrue(BuildingVariants::isExplicitMode('cannon', 'G'));
+        $this->assertNull(BuildingVariants::gearOwnerFor('wall', 'B'));
+        $this->assertFalse(BuildingVariants::splitsForGearUp('wall'));
+        $this->assertTrue(BuildingVariants::splitsForGearUp('mortar'));
     }
 
     public function test_labels_come_in_the_order_they_should_be_offered(): void

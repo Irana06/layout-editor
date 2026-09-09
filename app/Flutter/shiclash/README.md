@@ -114,7 +114,7 @@ Respons `/api/v1/bootstrap` membawa `meta.catalog_version`, sidik jari dari path
 
 ## Mode bangunan
 
-Sebagian bangunan punya mode yang dipilih pemain, dan tiap mode memakai gambar berbeda: Inferno Tower (Single/Multi), X-Bow (darat/udara), Multi-Gear Tower, Spell Tower, Skeleton Trap, serta Gear Up pada Cannon (mulai lv 7), Mortar (lv 8), dan Archer Tower (lv 10) yang punya tiga gambar: biasa, biasa bertuas, dan sudah di-gear. Pilih bangunannya di Editor, lalu ketuk mode yang diinginkan pada kartu detail. Mode melekat pada bangunan yang kamu taruh, bukan pada levelnya, dan ikut tersimpan di layout serta tautan share.
+Sebagian bangunan punya mode yang dipilih pemain, dan tiap mode memakai gambar berbeda: Inferno Tower (Single/Multi), X-Bow (darat/udara), Multi-Gear Tower, Spell Tower, Skeleton Trap, dan bangunan Gear Up. Gear Up adalah bangunan tersendiri di library — **Cannon Gear Up**, **Mortar Gear Up**, **Archer Tower Gear Up** — dengan mode Normal dan Gear Up, terpisah dari bangunan biasanya. Batas jumlahnya diatur di halaman Aturan TH seperti bangunan lain; biasanya 1 per base. Pilih bangunannya di Editor, lalu ketuk mode yang diinginkan pada kartu detail. Mode melekat pada bangunan yang kamu taruh, bukan pada levelnya, dan ikut tersimpan di layout serta tautan share.
 
 Mode yang ditawarkan dibaca dari gambar yang benar-benar ada untuk level itu, sehingga Spell Tower yang mode-nya terbuka bertahap tertangani tanpa aturan khusus.
 

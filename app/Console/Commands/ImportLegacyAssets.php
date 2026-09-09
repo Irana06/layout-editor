@@ -142,6 +142,14 @@ class ImportLegacyAssets extends Command
                 continue;
             }
 
+            // The gear-up building is a separate entry in the library, with its
+            // own count and its own artwork, so its files are split off into
+            // their own type before anything else looks at them.
+            if (BuildingVariants::gearOwnerFor($subfolder, $variantSuffix) === 'gear') {
+                $subfolder .= '-gear';
+                $typeName .= ' Gear Up';
+            }
+
             // A mode is a separate artwork the player chooses between, so it gets
             // its own group and its own row. Every other suffix — depleted,
             // unarmed, historical art — still competes for one slot.
@@ -326,11 +334,32 @@ class ImportLegacyAssets extends Command
             }
 
             if ($first['mode'] !== null && $modeCount < 2) {
+                // A gear-up entry with nothing to toggle is not a gear-up
+                // entry: a Cannon has no lever before level 7, so its early
+                // levels belong to the ordinary Cannon rather than sitting in
+                // the library as a second, identical building.
+                $gear = str_ends_with((string) $first['subfolder'], '-gear');
                 $candidates = array_map(
-                    fn (array $candidate): array => [...$candidate, 'mode' => null],
+                    fn (array $candidate): array => [
+                        ...$candidate,
+                        'mode' => null,
+                        'subfolder' => $gear
+                            ? substr((string) $candidate['subfolder'], 0, -5)
+                            : $candidate['subfolder'],
+                        'typeName' => $gear
+                            ? (string) preg_replace('/ Gear Up$/', '', $candidate['typeName'])
+                            : $candidate['typeName'],
+                    ],
                     $candidates,
                 );
-                $key = $levelKey.'|';
+                $first = $candidates[0];
+                $key = implode('|', [
+                    $first['category'],
+                    $first['subfolder'],
+                    Str::lower($first['typeName']),
+                    $first['level'],
+                    '',
+                ]);
             }
 
             // Demoting can collide with an existing unlabelled group for the
@@ -360,7 +389,10 @@ class ImportLegacyAssets extends Command
             ->get();
 
         foreach ($types as $type) {
-            if (! BuildingVariants::hasModes($type->subfolder)) {
+            // Folders that split for gear-up count too: once "cannon" stopped
+            // carrying modes, skipping it left its old mode rows in place.
+            if (! BuildingVariants::hasModes($type->subfolder)
+                && ! BuildingVariants::splitsForGearUp($type->subfolder)) {
                 continue;
             }
 

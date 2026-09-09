@@ -53,27 +53,63 @@ class BuildingVariants
             'invisibility' => ['invisibility', 'Invisibility'],
             'earthquake' => ['earthquake', 'Earthquake'],
         ],
-        // Gear Up comes in three artworks, not two: the building as it normally
-        // looks, the same building wearing the lever that switches it, and the
-        // geared form. Cannon and Mortar mark the normal one "B" and leave the
-        // levered one unsuffixed; Archer Tower does the opposite, leaving the
-        // normal one unsuffixed and marking the levered one "Up".
-        'cannon' => [
-            'b' => ['normal', 'Biasa'],
-            '' => ['lever', 'Bertuas'],
+        // The gear-up building is its own entry in the library, so its modes
+        // hang off its own subfolder rather than the ordinary building's.
+        'cannon-gear' => [
+            '' => ['normal', 'Normal'],
             'g' => ['geared', 'Gear Up'],
         ],
-        'mortar' => [
-            'b' => ['normal', 'Biasa'],
-            '' => ['lever', 'Bertuas'],
+        'mortar-gear' => [
+            '' => ['normal', 'Normal'],
             'g' => ['geared', 'Gear Up'],
         ],
-        'archer-tower' => [
-            '' => ['normal', 'Biasa'],
-            'up' => ['lever', 'Bertuas'],
+        'archer-tower-gear' => [
+            'up' => ['normal', 'Normal'],
             'g' => ['geared', 'Gear Up'],
         ],
     ];
+
+    /**
+     * Which artworks belong to the gear-up building rather than the ordinary
+     * one, per asset subfolder.
+     *
+     * In the game these are two separate entries: six plain Cannons and one
+     * that carries the lever, and only the levered one offers the Normal /
+     * Gear Up toggle once placed. Modelling gear-up as a mode of the ordinary
+     * Cannon made every Cannon look levered and gave the base seven of them.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private const GEAR_UP = [
+        // suffix => which building it belongs to
+        'cannon' => ['b' => 'ordinary', '' => 'gear', 'g' => 'gear'],
+        'mortar' => ['b' => 'ordinary', '' => 'gear', 'g' => 'gear'],
+        'archer-tower' => ['' => 'ordinary', 'up' => 'gear', 'g' => 'gear'],
+    ];
+
+    /** True when this asset folder splits into an ordinary and a gear-up building. */
+    public static function splitsForGearUp(?string $subfolder): bool
+    {
+        return isset(self::GEAR_UP[$subfolder ?? '']);
+    }
+
+    /**
+     * Whether a file belongs to the ordinary building or the gear-up one.
+     * Returns null when the folder has no gear-up split at all.
+     */
+    public static function gearOwnerFor(?string $subfolder, string $suffix): ?string
+    {
+        $map = self::GEAR_UP[$subfolder ?? ''] ?? null;
+        if ($map === null) {
+            return null;
+        }
+
+        $clean = Str::lower(trim((string) preg_replace('/\s*\bpre\s+.*$/i', '', trim($suffix))));
+
+        // An unrecognised suffix is a state of the plain building, not a third
+        // entry: "Cannon2 pre May-15-2023" is simply an older Cannon.
+        return $map[$clean] ?? 'ordinary';
+    }
 
     /**
      * The mode a filename suffix names, or null when the suffix is a state,

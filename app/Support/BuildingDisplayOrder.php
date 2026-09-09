@@ -54,10 +54,15 @@ class BuildingDisplayOrder
     private const WITHIN_CATEGORY = [
         'defensive' => [
             'Cannon',
+            // The gear-up building is its own library entry, and belongs beside
+            // the one it evolves from rather than at the end of the category.
+            'Cannon Gear Up',
             'Archer Tower',
+            'Archer Tower Gear Up',
             'Wizard Tower',
             'Air Defense',
             'Mortar',
+            'Mortar Gear Up',
             'Hidden Tesla',
             'X-Bow',
             'Inferno Tower',
