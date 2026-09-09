@@ -142,6 +142,14 @@ class ImportLegacyAssets extends Command
                 continue;
             }
 
+            // Clan Capital artwork lives in the same folders and parses as an
+            // ordinary level, so it has to be turned away by name rather than
+            // merely losing a tie-break — otherwise it invents levels the
+            // Home Village does not have.
+            if (BuildingVariants::isForeignAsset($variantSuffix)) {
+                continue;
+            }
+
             // The gear-up building is a separate entry in the library, with its
             // own count and its own artwork, so its files are split off into
             // their own type before anything else looks at them.
@@ -391,7 +399,11 @@ class ImportLegacyAssets extends Command
         foreach ($types as $type) {
             // Folders that split for gear-up count too: once "cannon" stopped
             // carrying modes, skipping it left its old mode rows in place.
-            if (! BuildingVariants::hasModes($type->subfolder)
+            // With --prune the sweep covers everything, which is how levels
+            // that stopped existing at all — Clan Capital art that used to be
+            // mistaken for Home Village levels — finally go away.
+            if (! $this->option('prune')
+                && ! BuildingVariants::hasModes($type->subfolder)
                 && ! BuildingVariants::splitsForGearUp($type->subfolder)) {
                 continue;
             }

@@ -87,6 +87,24 @@ class BuildingVariants
         'archer-tower' => ['' => 'ordinary', 'up' => 'gear', 'g' => 'gear'],
     ];
 
+    /**
+     * Suffixes marking artwork that is not from the Home Village at all.
+     *
+     * "C" files are the Clan Capital versions of a building. They sit in the
+     * same folders and parse as ordinary levels, which is how Super Wizard
+     * Tower ended up with five levels when the village only has two — levels
+     * three to five exist as Capital art and nothing else.
+     */
+    private const FOREIGN_SUFFIXES = ['c', 'c corner'];
+
+    /** True when this file belongs to another game mode and should not be imported. */
+    public static function isForeignAsset(string $suffix): bool
+    {
+        $clean = Str::lower(trim((string) preg_replace('/\s*\bpre\s+.*$/i', '', trim($suffix))));
+
+        return in_array($clean, self::FOREIGN_SUFFIXES, strict: true);
+    }
+
     /** True when this asset folder splits into an ordinary and a gear-up building. */
     public static function splitsForGearUp(?string $subfolder): bool
     {

@@ -127,3 +127,22 @@ Impor aset menulis ulang gambar ke `public/game/buildings` dengan nama yang meng
 ```powershell
 php artisan import:legacy-assets --force --prune
 ```
+
+## Menyinkronkan katalog ke server
+
+`import:legacy-assets` membaca `basecode_layout-editor/`, yang sengaja dikecualikan dari deploy — 182 MB aset sumber tidak perlu ada di server. Akibatnya importer hanya bisa dijalankan di mesin lokal, dan server tidak punya cara mengetahui bangunan baru.
+
+Alurnya jadi dua langkah. Di lokal, setelah mengimpor aset:
+
+```powershell
+php artisan import:legacy-assets --force --prune
+php artisan catalog:sync export
+```
+
+`database/catalog.json` ikut ter-commit dan ter-deploy. Di server, jalankan sekali setelah deploy:
+
+```powershell
+php artisan catalog:sync import
+```
+
+Kalibrasi ikut terbawa — footprint, skala, offset, jangkauan, dan aturan TH. Level yang tidak ada lagi di file ekspor akan dihapus di server, sehingga aset yang keliru terimpor tidak tertinggal.
