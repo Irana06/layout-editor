@@ -53,22 +53,23 @@ class BuildingVariants
             'invisibility' => ['invisibility', 'Invisibility'],
             'earthquake' => ['earthquake', 'Earthquake'],
         ],
-        // Gear Up comes in three artworks, not two: the plain building, the
-        // same building wearing the lever that switches it, and the geared
-        // form. Cannon and Mortar mark the levered one by leaving the suffix
-        // off; Archer Tower marks it "Up" and leaves its plain one unsuffixed.
+        // Gear Up comes in three artworks, not two: the building as it normally
+        // looks, the same building wearing the lever that switches it, and the
+        // geared form. Cannon and Mortar mark the normal one "B" and leave the
+        // levered one unsuffixed; Archer Tower does the opposite, leaving the
+        // normal one unsuffixed and marking the levered one "Up".
         'cannon' => [
-            'b' => ['plain', 'Biasa'],
+            'b' => ['normal', 'Biasa'],
             '' => ['lever', 'Bertuas'],
             'g' => ['geared', 'Gear Up'],
         ],
         'mortar' => [
-            'b' => ['plain', 'Biasa'],
+            'b' => ['normal', 'Biasa'],
             '' => ['lever', 'Bertuas'],
             'g' => ['geared', 'Gear Up'],
         ],
         'archer-tower' => [
-            '' => ['plain', 'Biasa'],
+            '' => ['normal', 'Biasa'],
             'up' => ['lever', 'Bertuas'],
             'g' => ['geared', 'Gear Up'],
         ],

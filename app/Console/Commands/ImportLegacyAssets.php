@@ -20,7 +20,8 @@ use SplFileInfo;
 class ImportLegacyAssets extends Command
 {
     protected $signature = 'import:legacy-assets
-                            {--force : Replace files that have already been imported}';
+                            {--force : Replace files that have already been imported}
+                            {--prune : Delete imported images no building level points at any more}';
 
     protected $description = 'Import basecode editor building and scenery assets into building_types/building_levels/sceneries.';
 
@@ -32,6 +33,15 @@ class ImportLegacyAssets extends Command
 
     /** @var array<string, array<string, mixed>> */
     private array $sceneryManifest = [];
+
+    /**
+     * Level rows this run wrote, per building type. Anything else belonging to
+     * a mode-carrying type is left over from an earlier run under different
+     * rules, and would otherwise keep showing up as a stale extra choice.
+     *
+     * @var array<int, list<int>>
+     */
+    private array $writtenLevelIds = [];
 
     public function __construct(private readonly GameAssetUploader $uploader)
     {
@@ -57,6 +67,10 @@ class ImportLegacyAssets extends Command
 
         $this->newLine();
         $this->info("Imported or updated {$importedLevels} building levels and {$importedSceneries} sceneries.");
+
+        if ($this->option('prune')) {
+            $this->pruneOrphanedImages();
+        }
 
         return self::SUCCESS;
     }
@@ -146,6 +160,8 @@ class ImportLegacyAssets extends Command
             ];
         }
 
+        $groups = $this->demoteSingleModeLevels($groups);
+
         $bar = $this->output->createProgressBar(count($groups));
         $bar->start();
         $count = 0;
@@ -216,6 +232,7 @@ class ImportLegacyAssets extends Command
             }
             $levelRow->file_path = $destination;
             $levelRow->save();
+            $this->writtenLevelIds[$type->id][] = $levelRow->id;
 
             $count++;
             $bar->advance();
@@ -228,6 +245,104 @@ class ImportLegacyAssets extends Command
     }
 
     /**
+     * Delete imported images nothing points at any more.
+     *
+     * Renaming a mode, or deciding a level had no modes after all, writes the
+     * artwork under a new name and leaves the old file behind — invisible in
+     * the app, but still shipped and still in the repository. Opt-in, because
+     * it deletes files and the operator should mean it.
+     */
+    private function pruneOrphanedImages(): void
+    {
+        $used = BuildingLevel::query()
+            ->pluck('file_path')
+            ->map(fn (string $path): string => $this->normalisePath(public_path('game/'.$path)))
+            ->flip();
+
+        $removed = 0;
+        $bytes = 0;
+        foreach (glob(public_path('game/buildings/*/*/*.*')) ?: [] as $file) {
+            if ($used->has($this->normalisePath($file))) {
+                continue;
+            }
+            $bytes += (int) filesize($file);
+            unlink($file);
+            $removed++;
+        }
+
+        $this->info($removed === 0
+            ? 'No orphaned images to prune.'
+            : sprintf('Pruned %d orphaned image(s), freeing %.1f MB.', $removed, $bytes / 1048576));
+    }
+
+    /**
+     * A mode is only a mode when there is something to choose between.
+     *
+     * A Cannon has no lever and no geared form until level 7, so its earlier
+     * levels have exactly one artwork — labelling that "Bertuas" would be
+     * wrong, and writing it to `1-lever.png` would leave `1.png` behind as
+     * dead weight. Levels with a single mode are collapsed back to the plain
+     * unlabelled form, which is also what every building without modes uses.
+     *
+     * @param  array<string, list<Candidate>>  $groups
+     * @return array<string, list<Candidate>>
+     */
+    private function demoteSingleModeLevels(array $groups): array
+    {
+        /** @var array<string, array<string, true>> $modesPerLevel */
+        $modesPerLevel = [];
+        foreach ($groups as $candidates) {
+            $first = $candidates[0];
+            if ($first['mode'] === null) {
+                continue;
+            }
+            $levelKey = implode('|', [
+                $first['category'],
+                $first['subfolder'],
+                Str::lower($first['typeName']),
+                $first['level'],
+            ]);
+            $modesPerLevel[$levelKey][$first['mode']] = true;
+        }
+
+        $rebuilt = [];
+        foreach ($groups as $key => $candidates) {
+            $first = $candidates[0];
+            $levelKey = implode('|', [
+                $first['category'],
+                $first['subfolder'],
+                Str::lower($first['typeName']),
+                $first['level'],
+            ]);
+
+            $modeCount = count($modesPerLevel[$levelKey] ?? []);
+
+            // Where a level really does offer modes, its unlabelled artwork is
+            // not a third choice — it is the destroyed Inferno Tower, the
+            // out-of-ammo X-Bow, the unarmed trap. Those are states nobody
+            // picks, so they are dropped rather than imported.
+            if ($first['mode'] === null && $modeCount >= 2) {
+                continue;
+            }
+
+            if ($first['mode'] !== null && $modeCount < 2) {
+                $candidates = array_map(
+                    fn (array $candidate): array => [...$candidate, 'mode' => null],
+                    $candidates,
+                );
+                $key = $levelKey.'|';
+            }
+
+            // Demoting can collide with an existing unlabelled group for the
+            // same level; both are then artwork of the same thing and compete
+            // as duplicates, which is exactly what pickCandidate is for.
+            $rebuilt[$key] = [...($rebuilt[$key] ?? []), ...$candidates];
+        }
+
+        return $rebuilt;
+    }
+
+    /**
      * Drop the single unlabelled row a mode-carrying building used to have.
      *
      * Before modes existed the importer kept one artwork per level, so an
@@ -237,8 +352,11 @@ class ImportLegacyAssets extends Command
      */
     private function retireSupersededLevels(): void
     {
+        // Driven by what this run touched rather than by what the database
+        // happens to hold, so a type whose modes were all demoted still gets
+        // its old mode rows cleared.
         $types = BuildingType::query()
-            ->whereHas('levels', fn ($query) => $query->whereNotNull('variant'))
+            ->whereIn('id', array_keys($this->writtenLevelIds))
             ->get();
 
         foreach ($types as $type) {
@@ -246,20 +364,12 @@ class ImportLegacyAssets extends Command
                 continue;
             }
 
-            $withModes = $type->levels()->whereNotNull('variant')->pluck('level')->unique();
-            $removed = $type->levels()
-                ->whereNull('variant')
-                ->whereIn('level', $withModes)
-                ->delete();
-
-            // Modes that no longer exist leave rows behind — renaming a mode,
-            // or splitting one into several, would otherwise pile the old and
-            // the new on top of each other in the library.
-            $known = array_keys(BuildingVariants::labelsFor($type->subfolder));
-            $removed += $type->levels()
-                ->whereNotNull('variant')
-                ->whereNotIn('variant', $known)
-                ->delete();
+            // Only rows this run produced are current. Anything else is from an
+            // earlier run under different rules — a mode since renamed, or one
+            // that turned out not to be a choice at all — and leaving it would
+            // show the same level twice with different labels.
+            $written = $this->writtenLevelIds[$type->id] ?? [];
+            $removed = $type->levels()->whereNotIn('id', $written)->delete();
 
             if ($removed > 0) {
                 $this->warn("Removed {$removed} superseded level row(s) of '{$type->name}'.");

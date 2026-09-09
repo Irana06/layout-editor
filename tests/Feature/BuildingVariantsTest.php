@@ -45,15 +45,15 @@ class BuildingVariantsTest extends TestCase
         // geared form. Cannon and Mortar leave the suffix off the levered one;
         // Archer Tower marks that "Up" and leaves its plain one unsuffixed.
         $this->assertSame(
-            ['plain' => 'Biasa', 'lever' => 'Bertuas', 'geared' => 'Gear Up'],
+            ['normal' => 'Biasa', 'lever' => 'Bertuas', 'geared' => 'Gear Up'],
             BuildingVariants::labelsFor('cannon'),
         );
 
-        $this->assertSame('plain', BuildingVariants::modeFor('cannon', 'B'));
+        $this->assertSame('normal', BuildingVariants::modeFor('cannon', 'B'));
         $this->assertSame('lever', BuildingVariants::modeFor('cannon', ''));
         $this->assertSame('geared', BuildingVariants::modeFor('cannon', 'G'));
 
-        $this->assertSame('plain', BuildingVariants::modeFor('archer-tower', ''));
+        $this->assertSame('normal', BuildingVariants::modeFor('archer-tower', ''));
         $this->assertSame('lever', BuildingVariants::modeFor('archer-tower', 'Up'));
         $this->assertSame('geared', BuildingVariants::modeFor('archer-tower', 'G'));
     }
@@ -62,7 +62,7 @@ class BuildingVariantsTest extends TestCase
     {
         // "Cannon7B pre May-15-2023" is an old drawing of the plain cannon, so
         // it competes with the current one rather than becoming a fourth mode.
-        $this->assertSame('plain', BuildingVariants::modeFor('cannon', 'B pre May-15-2023'));
+        $this->assertSame('normal', BuildingVariants::modeFor('cannon', 'B pre May-15-2023'));
         $this->assertSame('geared', BuildingVariants::modeFor('cannon', 'G pre May-15-2023'));
         $this->assertSame('lever', BuildingVariants::modeFor('cannon', 'pre May-15-2023'));
 
