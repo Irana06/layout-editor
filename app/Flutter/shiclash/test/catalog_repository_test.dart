@@ -68,13 +68,17 @@ void main() {
       await offline.rememberCatalog(payload('v1'));
       final api = _FakeApi(() async => payload('v2'));
       final repository = CatalogRepository(api, offline: offline);
-      var notified = 0;
-      repository.addListener(() => notified++);
+      // Waiting for the notification itself rather than for a fixed number of
+      // milliseconds: how fast the machine is must not decide whether this
+      // passes.
+      final notified = Completer<void>();
+      repository.addListener(() {
+        if (!notified.isCompleted) notified.complete();
+      });
 
       await repository.load();
-      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await notified.future.timeout(const Duration(seconds: 5));
 
-      expect(notified, 1);
       expect((await offline.cachedCatalog())!['meta']['catalog_version'], 'v2');
       repository.dispose();
     },
@@ -88,9 +92,12 @@ void main() {
     repository.addListener(() => notified++);
 
     await repository.load();
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+    // Proving an absence needs a generous wait, and waiting longer can only
+    // make this stricter, never flakier.
+    await Future<void>.delayed(const Duration(seconds: 1));
 
     expect(notified, 0);
+    expect(api.calls, 1);
     repository.dispose();
   });
 
