@@ -35,6 +35,11 @@ class LocalDraft {
           ].any((key) => row[key] is! int)) {
         throw const FormatException('Format bangunan tidak valid');
       }
+      // Optional, and only ever a mode key — a number or a map here means the
+      // file was written by something that does not speak this format.
+      if (row['variant'] != null && row['variant'] is! String) {
+        throw const FormatException('Format mode bangunan tidak valid');
+      }
     }
     return LocalDraft(
       id: json['id'] as String,

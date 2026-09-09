@@ -8,6 +8,7 @@ class EditorPlacement {
     required this.level,
     required this.gridX,
     required this.gridY,
+    this.variant,
   });
 
   final int id;
@@ -16,21 +17,30 @@ class EditorPlacement {
   final int gridX;
   final int gridY;
 
-  EditorPlacement moveTo(int x, int y) => EditorPlacement(
+  /// Which mode this one is set to, for buildings that offer a choice — an
+  /// Inferno Tower's `single`/`multi`. It belongs to the placement rather than
+  /// the level because it is decided per building, not per upgrade.
+  final String? variant;
+
+  EditorPlacement copyWith({
+    int? level,
+    int? gridX,
+    int? gridY,
+    String? variant,
+  }) => EditorPlacement(
     id: id,
     buildingTypeId: buildingTypeId,
-    level: level,
-    gridX: x,
-    gridY: y,
+    level: level ?? this.level,
+    gridX: gridX ?? this.gridX,
+    gridY: gridY ?? this.gridY,
+    variant: variant ?? this.variant,
   );
 
-  EditorPlacement withLevel(int value) => EditorPlacement(
-    id: id,
-    buildingTypeId: buildingTypeId,
-    level: value,
-    gridX: gridX,
-    gridY: gridY,
-  );
+  EditorPlacement moveTo(int x, int y) => copyWith(gridX: x, gridY: y);
+
+  EditorPlacement withLevel(int value) => copyWith(level: value);
+
+  EditorPlacement withVariant(String value) => copyWith(variant: value);
 }
 
 class EditorDragPreview {
@@ -86,6 +96,9 @@ class EditorController extends ChangeNotifier {
   int? selectedId;
   int? armedBuildingTypeId;
   int? armedLevel;
+
+  /// Mode the next placement will be made in, for buildings that have one.
+  String? armedVariant;
   bool movingSelection = false;
   // The scenery remains clean by default; the line grid is an opt-in aid.
   bool showGrid = false;
@@ -107,6 +120,9 @@ class EditorController extends ChangeNotifier {
             'level': item.level,
             'gx': item.gridX,
             'gy': item.gridY,
+            // Only sent when the building has a mode, so layouts of ordinary
+            // buildings keep exactly the shape older versions wrote and read.
+            if (item.variant != null) 'variant': item.variant,
           },
         )
         .toList(),
@@ -138,6 +154,16 @@ class EditorController extends ChangeNotifier {
           throw const FormatException('Bangunan atau level tidak tersedia');
         }
         scratch.arm(type, level: level);
+        // A stored mode is honoured when the catalogue still has it; anything
+        // else falls back to the default rather than rejecting the whole draft
+        // over one building whose mode was retired.
+        final storedVariant = row['variant'] as String?;
+        if (storedVariant != null &&
+            type.levels.any(
+              (item) => item.level == level && item.variant == storedVariant,
+            )) {
+          scratch.armedVariant = storedVariant;
+        }
         final count = scratch.placements.length;
         scratch.handleGridTap(row['gx'] as int, row['gy'] as int);
         if (scratch.placements.length != count + 1) {
@@ -197,9 +223,66 @@ class EditorController extends ChangeNotifier {
     final type = typeFor(placement.buildingTypeId);
     if (type == null) return null;
     for (final level in type.levels) {
+      if (level.level == placement.level &&
+          level.variant == placement.variant) {
+        return level;
+      }
+    }
+    // A placement whose mode no longer exists — an older draft, or a mode
+    // dropped from the catalogue — still draws as that level rather than
+    // vanishing from the base.
+    for (final level in type.levels) {
       if (level.level == placement.level) return level;
     }
+
     return type.thumbnailFor(placement.level);
+  }
+
+  /// The mode a newly placed building starts in: the first one its level has
+  /// artwork for, or null when this building offers no choice.
+  String? defaultVariantFor(BuildingType type, int level) {
+    if (type.modes.isEmpty) return null;
+    for (final key in type.modes.keys) {
+      if (type.levels.any(
+        (item) => item.level == level && item.variant == key,
+      )) {
+        return key;
+      }
+    }
+
+    return null;
+  }
+
+  /// Modes this placement can be switched between, in the order the server
+  /// offers them, limited to those its level actually has artwork for. Spell
+  /// Tower gains modes as it upgrades, so this is read from the levels rather
+  /// than assumed from the type.
+  List<MapEntry<String, String>> variantsFor(EditorPlacement placement) {
+    final type = typeFor(placement.buildingTypeId);
+    if (type == null || type.modes.isEmpty) return const [];
+    final available = type.levels
+        .where((item) => item.level == placement.level && item.variant != null)
+        .map((item) => item.variant!)
+        .toSet();
+
+    return type.modes.entries
+        .where((entry) => available.contains(entry.key))
+        .toList(growable: false);
+  }
+
+  /// Switch the selected building to another mode. Nothing about its position
+  /// or level changes, so this is one undo step like any other edit.
+  void setSelectedVariant(String variant) {
+    final placement = selectedPlacement;
+    if (placement == null || placement.variant == variant) return;
+    final type = typeFor(placement.buildingTypeId);
+    _commit([
+      for (final item in placements)
+        item.id == placement.id ? item.withVariant(variant) : item,
+    ]);
+    final label = type?.modes[variant] ?? variant;
+    status = '${type?.name ?? 'Bangunan'} diubah ke mode $label.';
+    notifyListeners();
   }
 
   int maxCountFor(int buildingTypeId) {
@@ -237,6 +320,7 @@ class EditorController extends ChangeNotifier {
     armedLevel = type.isTownHall
         ? maxLevel
         : (level ?? maxLevel).clamp(1, maxLevel);
+    armedVariant = defaultVariantFor(type, armedLevel!);
     selectedId = null;
     movingSelection = false;
     status = '${type.name} level $armedLevel siap ditempatkan.';
@@ -340,6 +424,7 @@ class EditorController extends ChangeNotifier {
       level: armedLevel ?? 1,
       gridX: x,
       gridY: y,
+      variant: armedVariant,
     );
     if (!_canOccupy(candidate)) return;
     _commit([...placements, candidate]);

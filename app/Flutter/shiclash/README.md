@@ -7,7 +7,7 @@ Flutter client untuk Base Layout Editor. Website menggunakan Laravel + React/Ine
 - **Studio**: beranda, lanjutkan draft, buat base, dan akses koleksi.
 - **Buat base**: pilih TH dan scenery. Draft aktif yang berisi objek disimpan sebagai salinan sebelum permintaan canvas baru dikirim ke editor.
 - **Katalog**: cari bangunan dan filter berdasarkan TH; ketuk kartu untuk membuka detail level, footprint, dan limit jumlah.
-- **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, ganti nama layout, dan bagikan. Bangunan yang dipilih menampilkan ring jangkauan serangan bila jangkauannya sudah diisi di Calibrator.
+- **Editor**: placement, pilih/pindah/hapus, undo/redo, grid, pan/zoom, autosave, ganti nama layout, ganti mode bangunan, dan bagikan. Bangunan yang dipilih menampilkan ring jangkauan serangan bila jangkauannya sudah diisi di Calibrator.
 - **Editor landscape**: tombol maximize membuka kanvas satu layar penuh dalam orientasi landscape dengan bilah bangunan di bawah; tombol minimize mengembalikan ke mode potrait. Kartu detail bangunan yang dipilih tampil sama seperti di potrait, di sudut kiri atas.
 - **Layouts**: pencarian, urut terbaru/terlama, detail posisi objek, ganti nama, duplikat, bagikan, buka, dan hapus salinan.
 - **Akun**: masuk/daftar dengan Google, tetap dapat digunakan secara offline, backup, restore, dan keluar akun.
@@ -111,3 +111,11 @@ Katalog disimpan ke perangkat setiap kali berhasil dimuat, tanpa perlu diaktifka
 Gambarnya berbeda karena jauh lebih besar, jadi hanya diunduh bila diminta. Buka **Lainnya → Mode offline** untuk mengunduh seluruh gambar bangunan dan scenery. Unduhan yang terputus dilanjutkan, bukan diulang, dan berkas yang belum tersimpan tetap diambil dari jaringan sehingga unduhan sebagian tetap berguna.
 
 Respons `/api/v1/bootstrap` membawa `meta.catalog_version`, sidik jari dari path berkas dan nilai kalibrasi. Nilai itu hanya berubah ketika katalognya benar-benar berubah, sehingga aplikasi dapat menandai aset yang usang tanpa menyuruh mengunduh ulang setiap kali. Versi hanya dicap saat seluruh berkas berhasil diunduh; unduhan sebagian tidak pernah mengaku terbaru.
+
+## Mode bangunan
+
+Sebagian bangunan punya mode yang dipilih pemain, dan tiap mode memakai gambar berbeda: Inferno Tower (Single/Multi), X-Bow (darat/udara), Multi-Gear Tower, Spell Tower, dan Skeleton Trap. Pilih bangunannya di Editor, lalu ketuk mode yang diinginkan pada kartu detail. Mode melekat pada bangunan yang kamu taruh, bukan pada levelnya, dan ikut tersimpan di layout serta tautan share.
+
+Mode yang ditawarkan dibaca dari gambar yang benar-benar ada untuk level itu, sehingga Spell Tower yang mode-nya terbuka bertahap tertangani tanpa aturan khusus.
+
+Daftar mode ditentukan server dan dikirim lewat `modes` pada tiap building type, jadi tidak ada salinan tabelnya di aplikasi. Sufiks berkas yang bukan pilihan pemain — `Depleted`, `unarmed`, `Active`, tahap kehancuran, dan seni lama `pre <tanggal>` — sengaja tidak dianggap mode.

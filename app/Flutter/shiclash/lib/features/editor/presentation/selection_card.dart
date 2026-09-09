@@ -38,6 +38,7 @@ class SelectionCard extends StatelessWidget {
           ..sort();
     final index = available.indexOf(placement.level);
     final editable = !readOnly && !type.isTownHall && index >= 0;
+    final modes = controller.variantsFor(placement);
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 190),
       child: DecoratedBox(
@@ -135,6 +136,23 @@ class SelectionCard extends StatelessWidget {
                   ],
                 ),
               ],
+              if (modes.length > 1) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: [
+                    for (final mode in modes)
+                      _ModeChip(
+                        label: mode.value,
+                        selected: mode.key == placement.variant,
+                        onTap: readOnly
+                            ? null
+                            : () => controller.setSelectedVariant(mode.key),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 3),
               Text(
                 readOnly
@@ -143,6 +161,48 @@ class SelectionCard extends StatelessWidget {
                 style: const TextStyle(color: AppColors.muted, fontSize: 9),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One mode a building can be switched to. Small enough to sit inside the
+/// detail card without turning it into a settings panel.
+class _ModeChip extends StatelessWidget {
+  const _ModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.brass.withValues(alpha: .22)
+              : Colors.transparent,
+          border: Border.all(
+            color: selected ? AppColors.brass : AppColors.line,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: selected ? AppColors.ivory : AppColors.muted,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
           ),
         ),
       ),

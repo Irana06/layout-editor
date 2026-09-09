@@ -166,6 +166,7 @@ class BuildingType {
     this.attackRangeMin = 0,
     this.attackRangeMax = 0,
     this.displayOrder = 9999,
+    this.modes = const {},
   });
 
   factory BuildingType.fromJson(Map<String, dynamic> json) => BuildingType(
@@ -183,6 +184,10 @@ class BuildingType {
     attackRangeMin: _int(json['attack_range_min']),
     attackRangeMax: _int(json['attack_range_max']),
     displayOrder: _int(json['display_order'], fallback: 9999),
+    modes: {
+      for (final entry in ((json['modes'] as Map?) ?? const {}).entries)
+        '${entry.key}': '${entry.value}',
+    },
     levels: _list(json['levels'])
         .map((item) => BuildingLevel.fromJson(item))
         .toList(growable: false),
@@ -206,6 +211,11 @@ class BuildingType {
   /// Where this sits in the library, decided by the server so the editor, the
   /// catalogue, and the web app never disagree about it.
   final int displayOrder;
+
+  /// Modes this building can be switched between, as `key => label`, in the
+  /// order they should be offered. Empty for buildings with no choice. The
+  /// server owns this table so no client keeps its own copy.
+  final Map<String, String> modes;
   final List<BuildingLevel> levels;
 
   /// Radius of a range ring, in tiles from the building's centre.
@@ -235,6 +245,7 @@ class BuildingType {
     attackRangeMin: attackRangeMin ?? this.attackRangeMin,
     attackRangeMax: attackRangeMax ?? this.attackRangeMax,
     displayOrder: displayOrder ?? this.displayOrder,
+    modes: modes,
     levels: levels ?? this.levels,
   );
 

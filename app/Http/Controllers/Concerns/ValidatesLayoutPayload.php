@@ -30,6 +30,9 @@ trait ValidatesLayoutPayload
             'data.*.level' => ['required', 'integer', 'min:1'],
             'data.*.gx' => ['required', 'integer', 'min:0'],
             'data.*.gy' => ['required', 'integer', 'min:0'],
+            // Which mode a building is set to, for the ones that offer a
+            // choice. Absent for everything else, which is most of them.
+            'data.*.variant' => ['sometimes', 'nullable', 'string', 'max:32'],
             'thumbnail_data' => ['nullable', 'string', 'max:2000000'],
         ]);
 
