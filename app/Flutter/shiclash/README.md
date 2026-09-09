@@ -118,4 +118,6 @@ Sebagian bangunan punya mode yang dipilih pemain, dan tiap mode memakai gambar b
 
 Mode yang ditawarkan dibaca dari gambar yang benar-benar ada untuk level itu, sehingga Spell Tower yang mode-nya terbuka bertahap tertangani tanpa aturan khusus.
 
+Tiap mode punya jangkauan serangannya sendiri. Di Calibrator, pilih level beserta modenya, lalu isi jangkauan di sana; nilai itu hanya berlaku untuk mode tersebut. Bangunan tanpa mode tetap mengisi jangkauan sekali untuk semua levelnya.
+
 Daftar mode ditentukan server dan dikirim lewat `modes` pada tiap building type, jadi tidak ada salinan tabelnya di aplikasi. Sufiks berkas yang bukan pilihan pemain — `Depleted`, `unarmed`, `Active`, tahap kehancuran, dan seni lama `pre <tanggal>` — sengaja tidak dianggap mode.

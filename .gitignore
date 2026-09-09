@@ -28,5 +28,5 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
-/.claude
-/.codex-remote-attachments
+.claude
+.codex-remote-attachments

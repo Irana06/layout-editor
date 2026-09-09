@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BuildingLevel extends Model
 {
     protected $fillable = [
-        'building_type_id', 'level', 'variant', 'file_path', 'grid_width', 'grid_height', 'scale', 'offset_x', 'offset_y',
+        'building_type_id', 'level', 'variant', 'file_path', 'grid_width', 'grid_height', 'scale', 'offset_x', 'offset_y', 'attack_range_min', 'attack_range_max',
     ];
 
     protected function casts(): array

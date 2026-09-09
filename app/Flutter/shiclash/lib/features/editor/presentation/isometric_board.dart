@@ -384,7 +384,14 @@ class _PlacementGroundPainter extends CustomPainter {
     final placement = controller.selectedPlacement;
     if (placement == null) return;
     final type = controller.typeFor(placement.buildingTypeId);
-    if (type == null || type.attackRangeMax <= 0) return;
+    if (type == null) return;
+    // A mode can reach further than the building's own figure — an Inferno
+    // Tower on Single outranges the same tower on Multi — so the level's value
+    // wins where it has one.
+    final level = controller.levelFor(placement);
+    final rangeMin = level?.attackRangeMin ?? type.attackRangeMin;
+    final rangeMax = level?.attackRangeMax ?? type.attackRangeMax;
+    if (rangeMax <= 0) return;
 
     final footprint = controller.footprint(placement);
     final centre = isoPoint(
@@ -413,8 +420,8 @@ class _PlacementGroundPainter extends CustomPainter {
       canvas.drawOval(box, stroke);
     }
 
-    ring(type.attackRangeMax, filled: true);
-    ring(type.attackRangeMin, filled: false);
+    ring(rangeMax, filled: true);
+    ring(rangeMin, filled: false);
   }
 
   void _drawPlacement(

@@ -131,7 +131,12 @@ class _BuildingLevelPickerState extends State<_BuildingLevelPicker> {
                                     [
                                       if (type.subfolder?.isNotEmpty == true)
                                         type.subfolder!,
-                                      '${type.levels.length} level',
+                                      // Counting rows would say "24 level" for
+                                      // an Inferno Tower that has 12, each in
+                                      // two modes.
+                                      '${type.levels.map((l) => l.level).toSet().length} level',
+                                      if (type.modes.length > 1)
+                                        '${type.modes.length} mode',
                                     ].join(' · '),
                                   ),
                                   children: [
@@ -145,8 +150,18 @@ class _BuildingLevelPickerState extends State<_BuildingLevelPicker> {
                                           url: level.imageUrl,
                                           size: 44,
                                         ),
+                                        // The mode has to be in the title:
+                                        // without it an Inferno Tower lists
+                                        // "Level 10" twice and there is no way
+                                        // to tell which one is being calibrated.
                                         title: Text(
-                                          '${type.name} · Level ${level.level}',
+                                          [
+                                            type.name,
+                                            'Level ${level.level}',
+                                            if (level.variant != null)
+                                              type.modes[level.variant] ??
+                                                  level.variant!,
+                                          ].join(' · '),
                                         ),
                                         subtitle: Text(
                                           '${level.gridWidth ?? type.defaultGridWidth} × ${level.gridHeight ?? type.defaultGridHeight} tile',

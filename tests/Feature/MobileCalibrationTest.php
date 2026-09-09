@@ -121,6 +121,23 @@ class MobileCalibrationTest extends TestCase
             ->assertStatus(422);
     }
 
+    public function test_a_mode_keeps_its_own_reach_without_touching_the_building(): void
+    {
+        $type = BuildingType::create(['name' => 'Inferno Tower', 'category' => 'defensive', 'subfolder' => 'inferno-tower', 'default_grid_width' => 2, 'default_grid_height' => 2, 'attack_range_max' => 9]);
+        $single = BuildingLevel::create(['building_type_id' => $type->id, 'level' => 1, 'variant' => 'single', 'file_path' => 'single.png']);
+        $multi = BuildingLevel::create(['building_type_id' => $type->id, 'level' => 1, 'variant' => 'multi', 'file_path' => 'multi.png']);
+
+        $this->withToken($this->token())
+            ->patchJson("/api/v1/admin/building-levels/{$single->id}", ['attack_range_max' => 10])
+            ->assertOk();
+
+        $this->assertSame(10, $single->fresh()->attack_range_max);
+        // The other mode and the building itself are untouched: a mode's reach
+        // is its own, and null still means "ask the building".
+        $this->assertNull($multi->fresh()->attack_range_max);
+        $this->assertSame(9, $type->fresh()->attack_range_max);
+    }
+
     public function test_a_blind_spot_cannot_reach_past_the_range(): void
     {
         $type = BuildingType::create(['name' => 'Mortar', 'category' => 'defensive', 'default_grid_width' => 3, 'default_grid_height' => 3]);

@@ -8,6 +8,7 @@ use App\Support\GameAssetUploader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\ValidationException;
 
 class BuildingLevelController extends Controller
 {
@@ -47,7 +48,19 @@ class BuildingLevelController extends Controller
             'scale' => ['sometimes', 'numeric', 'min:0.1', 'max:5'],
             'offset_x' => ['sometimes', 'numeric', 'min:-500', 'max:500'],
             'offset_y' => ['sometimes', 'numeric', 'min:-500', 'max:500'],
+            // Per-mode reach: an Inferno Tower carries a different range on
+            // Single than on Multi. Null hands the question back to the type.
+            'attack_range_min' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:60'],
+            'attack_range_max' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:60'],
         ]);
+
+        $min = $data['attack_range_min'] ?? $buildingLevel->attack_range_min;
+        $max = $data['attack_range_max'] ?? $buildingLevel->attack_range_max;
+        if ($min !== null && $max !== null && $min > 0 && $min >= $max) {
+            throw ValidationException::withMessages([
+                'attack_range_min' => 'Jarak minimal harus lebih kecil dari jarak maksimal.',
+            ]);
+        }
 
         $type = $buildingLevel->type;
 

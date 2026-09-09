@@ -122,8 +122,14 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       ...level.visualCalibrationValues(),
       'grid_size': type.defaultGridWidth,
       'shows_deployment_ring': type.showsDeploymentRing,
-      'attack_range_min': type.attackRangeMin,
-      'attack_range_max': type.attackRangeMax,
+      // A mode carries its own reach, and starts from the building's figure so
+      // an untouched mode reads the same as the building it belongs to.
+      'attack_range_min': level.variant == null
+          ? type.attackRangeMin
+          : level.attackRangeMin ?? type.attackRangeMin,
+      'attack_range_max': level.variant == null
+          ? type.attackRangeMax
+          : level.attackRangeMax ?? type.attackRangeMax,
     };
   }
 
@@ -208,22 +214,37 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         final rangeMax =
             draft.values['attack_range_max'] as int? ??
             originalType.attackRangeMax;
-        final rangeChanged =
-            rangeMin != originalType.attackRangeMin ||
-            rangeMax != originalType.attackRangeMax;
+        // Range belongs to the mode when there is one, and to the building
+        // otherwise — Single and Multi reach different distances, so writing
+        // both to the type would make one of them wrong.
+        final perMode = originalLevel.variant != null;
+        final rangeChanged = perMode
+            ? rangeMin !=
+                      (originalLevel.attackRangeMin ??
+                          originalType.attackRangeMin) ||
+                  rangeMax !=
+                      (originalLevel.attackRangeMax ??
+                          originalType.attackRangeMax)
+            : rangeMin != originalType.attackRangeMin ||
+                  rangeMax != originalType.attackRangeMax;
 
-        if (showsRing != originalType.showsDeploymentRing || rangeChanged) {
+        if (showsRing != originalType.showsDeploymentRing ||
+            (rangeChanged && !perMode)) {
           await _api.request(
             'admin/building-types/${originalType.id}',
             body: {
               'shows_deployment_ring': showsRing,
-              'attack_range_min': rangeMin,
-              'attack_range_max': rangeMax,
+              if (!perMode) 'attack_range_min': rangeMin,
+              if (!perMode) 'attack_range_max': rangeMax,
             },
           );
-          updatedType = updatedType
-              .withDeploymentRing(showsRing)
-              .withAttackRange(min: rangeMin, max: rangeMax);
+          updatedType = updatedType.withDeploymentRing(showsRing);
+          if (!perMode) {
+            updatedType = updatedType.withAttackRange(
+              min: rangeMin,
+              max: rangeMax,
+            );
+          }
         }
 
         if (originalType.defaultGridWidth != footprintSize ||
@@ -243,6 +264,8 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
             'scale': draft.values['scale'],
             'offset_x': draft.values['offset_x'],
             'offset_y': draft.values['offset_y'],
+            if (perMode) 'attack_range_min': rangeMin,
+            if (perMode) 'attack_range_max': rangeMax,
           },
         );
         final remoteValues = BuildingLevel.fromJson(
@@ -645,13 +668,20 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                   if (_building) ...[
                     const SizedBox(height: 12),
                     Text(
-                      'Jangkauan serangan (tile)',
+                      _level?.variant == null
+                          ? 'Jangkauan serangan (tile)'
+                          : 'Jangkauan serangan · mode ${_type!.modes[_level!.variant] ?? _level!.variant!}',
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                     const SizedBox(height: 2),
-                    const Text(
-                      'Dihitung dari titik tengah bangunan, sama seperti angka jangkauan di game. Maksimal 0 berarti bangunan ini tidak menyerang dan tidak menampilkan ring. Isi minimal hanya untuk bangunan bertitik buta seperti Mortar.',
-                      style: TextStyle(color: AppColors.muted, fontSize: 11),
+                    Text(
+                      _level?.variant == null
+                          ? 'Dihitung dari titik tengah bangunan, sama seperti angka jangkauan di game. Berlaku untuk semua level bangunan ini. Maksimal 0 berarti bangunan ini tidak menyerang dan tidak menampilkan ring. Isi minimal hanya untuk bangunan bertitik buta seperti Mortar.'
+                          : 'Dihitung dari titik tengah bangunan. Nilai ini hanya berlaku untuk mode dan level yang sedang dipilih, karena tiap mode punya jangkauan sendiri.',
+                      style: const TextStyle(
+                        color: AppColors.muted,
+                        fontSize: 11,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -802,7 +832,12 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                   Text(
                     type == null || level == null
                         ? 'Pilih building'
-                        : '${type.name} · Level ${level.level}',
+                        : [
+                            type.name,
+                            'Level ${level.level}',
+                            if (level.variant != null)
+                              type.modes[level.variant] ?? level.variant!,
+                          ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontWeight: FontWeight.w600),
@@ -920,7 +955,15 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
                 .where((l) => l.id != _level!.id)
                 .map(
                   (l) => ListTile(
-                    title: Text('Level ${l.level}'),
+                    // Same reason as the picker: two entries reading "Level 10"
+                    // give no way to choose between an Inferno Tower's modes.
+                    title: Text(
+                      [
+                        'Level ${l.level}',
+                        if (l.variant != null)
+                          _type!.modes[l.variant] ?? l.variant!,
+                      ].join(' · '),
+                    ),
                     onTap: () => Navigator.pop(ctx, l),
                   ),
                 ),

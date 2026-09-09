@@ -293,6 +293,8 @@ class BuildingLevel {
     required this.offsetX,
     required this.offsetY,
     this.variant,
+    this.attackRangeMin,
+    this.attackRangeMax,
   });
 
   factory BuildingLevel.fromJson(Map<String, dynamic> json) => BuildingLevel(
@@ -305,6 +307,12 @@ class BuildingLevel {
     scale: _double(json['scale'], fallback: 1),
     offsetX: _double(json['offset_x']),
     offsetY: _double(json['offset_y']),
+    attackRangeMin: json['attack_range_min'] == null
+        ? null
+        : _int(json['attack_range_min']),
+    attackRangeMax: json['attack_range_max'] == null
+        ? null
+        : _int(json['attack_range_max']),
   );
 
   final int id;
@@ -314,6 +322,11 @@ class BuildingLevel {
   /// an Inferno Tower's `single`/`multi`, an X-Bow's `ground`/`air`. Null for
   /// the ordinary case of one artwork per level.
   final String? variant;
+
+  /// Reach for this mode specifically. Null means the building's own range
+  /// applies, which is the case for everything without a mode.
+  final int? attackRangeMin;
+  final int? attackRangeMax;
   final String imageUrl;
   final int? gridWidth;
   final int? gridHeight;
@@ -325,6 +338,8 @@ class BuildingLevel {
     id: id,
     level: level,
     variant: variant,
+    attackRangeMin: attackRangeMin,
+    attackRangeMax: attackRangeMax,
     imageUrl: imageUrl,
     gridWidth: values['grid_width'] as int?,
     gridHeight: values['grid_height'] as int?,
@@ -341,6 +356,8 @@ class BuildingLevel {
         id: id,
         level: level,
         variant: variant,
+        attackRangeMin: attackRangeMin,
+        attackRangeMax: attackRangeMax,
         imageUrl: imageUrl,
         gridWidth: gridWidth,
         gridHeight: gridHeight,
@@ -353,6 +370,8 @@ class BuildingLevel {
     id: id,
     level: level,
     variant: variant,
+    attackRangeMin: attackRangeMin,
+    attackRangeMax: attackRangeMax,
     imageUrl: imageUrl,
     gridWidth: width,
     gridHeight: height,
