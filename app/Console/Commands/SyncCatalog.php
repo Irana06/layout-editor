@@ -121,6 +121,13 @@ class SyncCatalog extends Command
                 );
             }
 
+            // Levels are written in bulk rather than one at a time. There are
+            // several hundred of them, and on a hosted database each write is a
+            // network round trip — done singly this took minutes.
+            $now = now();
+            $rows = [];
+            $typeIds = [];
+
             foreach ($payload['building_types'] as $type) {
                 $levels = $type['levels'];
                 unset($type['levels']);
@@ -133,24 +140,26 @@ class SyncCatalog extends Command
                     ],
                     $type,
                 );
+                $typeIds[] = $model->id;
 
-                $kept = [];
                 foreach ($levels as $level) {
-                    $row = BuildingLevel::query()->updateOrCreate(
-                        [
-                            'building_type_id' => $model->id,
-                            'level' => $level['level'],
-                            'variant' => $level['variant'],
-                        ],
-                        $level,
-                    );
-                    $kept[] = $row->id;
+                    $rows[] = [
+                        ...$level,
+                        'building_type_id' => $model->id,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ];
                 }
+            }
 
-                // Levels the export no longer has are gone for a reason —
-                // Clan Capital art mistaken for a level, a mode since split
-                // into its own building — so they must not linger here.
-                $model->levels()->whereNotIn('id', $kept)->delete();
+            // Replacing wholesale rather than reconciling: level rows are
+            // referenced by nothing — layouts record a building and a level
+            // number, never a row id — and it drops levels the export no longer
+            // has, such as Clan Capital art once mistaken for a Home Village
+            // level, without a second pass to find them.
+            BuildingLevel::query()->whereIn('building_type_id', $typeIds)->delete();
+            foreach (array_chunk($rows, 200) as $chunk) {
+                BuildingLevel::query()->insert($chunk);
             }
 
             foreach ($payload['unlock_rules'] as $rule) {
